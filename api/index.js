@@ -141,7 +141,7 @@ app.get('/api/subcategorias', async (req, res) => {
     const { categoria_id } = req.query;
     let query = supabase
       .from('subcategorias')
-      .select('*, categorias(id, nombre, icono)')
+      .select('*, categorias!categoria_id(id, nombre, icono)')
       .order('id', { ascending: true });
 
     if (categoria_id) {
@@ -183,7 +183,7 @@ app.post('/api/subcategorias', async (req, res) => {
         icono,
         categoria_id: categoriaIdLimpio
       }])
-      .select('*, categorias(id, nombre, icono)')
+      .select('*, categorias!categoria_id(id, nombre, icono)')
       .single();
 
     if (error) {
