@@ -12,6 +12,13 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// --- validacion para portal admin ---
+const path = require('path');
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'admin.html'));
+});
+
 // --- RUTAS DE AUTENTICACIÓN ---
 
 // Registro de clientes
