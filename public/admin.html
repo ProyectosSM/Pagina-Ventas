@@ -45,7 +45,6 @@
 </head>
 <body>
 
-    <!-- Barra Superior -->
     <nav class="navbar navbar-dark navbar-admin sticky-top mb-4">
         <div class="container">
             <a class="navbar-brand fw-bold d-flex align-items-center" href="/index.html">
@@ -61,6 +60,8 @@
     </nav>
 
     <div class="container pb-5">
+        <div id="alerta-api-admin" class="alert alert-danger d-none rounded-4"></div>
+
         <div class="row g-4">
 
             <!-- Columna Izquierda: Categorías y Subcategorías -->
@@ -95,7 +96,9 @@
 
                         <hr class="my-4">
                         <h6 class="fw-bold mb-2">Categorías Activas</h6>
-                        <div id="lista-categorias-admin" class="list-group list-group-flush"></div>
+                        <div id="lista-categorias-admin" class="list-group list-group-flush">
+                            <small class="text-muted">Cargando categorías...</small>
+                        </div>
                     </div>
                 </div>
 
@@ -131,7 +134,9 @@
 
                         <hr class="my-4">
                         <h6 class="fw-bold mb-2">Subcategorías Activas</h6>
-                        <div id="lista-subcategorias-admin" class="list-group list-group-flush"></div>
+                        <div id="lista-subcategorias-admin" class="list-group list-group-flush">
+                            <small class="text-muted">Cargando subcategorías...</small>
+                        </div>
                     </div>
                 </div>
 
@@ -234,21 +239,61 @@
             cargarTodo();
         });
 
+        function mostrarAlertaAdmin(mensaje) {
+            const alerta = document.getElementById('alerta-api-admin');
+            if (!mensaje) {
+                alerta.classList.add('d-none');
+                alerta.textContent = '';
+                return;
+            }
+            alerta.classList.remove('d-none');
+            alerta.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i>${mensaje}`;
+        }
+
+        async function leerListaApi(url, claveAlterna) {
+            const res = await fetch(url);
+            const data = await res.json().catch(() => []);
+            if (!res.ok) {
+                throw new Error(data.error || `Error ${res.status} al consultar ${url}`);
+            }
+            if (Array.isArray(data)) return data;
+            if (claveAlterna && Array.isArray(data?.[claveAlterna])) return data[claveAlterna];
+            if (Array.isArray(data?.data)) return data.data;
+            return [];
+        }
+
         async function cargarTodo() {
-            const [resCat, resSub, resProd] = await Promise.all([
-                fetch('/api/categorias'),
-                fetch('/api/subcategorias'),
-                fetch('/api/productos')
-            ]);
+            mostrarAlertaAdmin('');
 
-            categoriasAdmin = await resCat.json();
-            subcategoriasAdmin = await resSub.json();
-            productosAdmin = await resProd.json();
+            try {
+                categoriasAdmin = await leerListaApi('/api/categorias', 'categorias');
+                renderizarSelects();
+                renderizarCategoriasAdmin();
+            } catch (err) {
+                console.error('Error cargando categorías:', err);
+                mostrarAlertaAdmin(`No se pudieron cargar las categorías: ${err.message}`);
+                document.getElementById('lista-categorias-admin').innerHTML =
+                    `<small class="text-danger">Error al leer categorías.</small>`;
+            }
 
-            renderizarSelects();
-            renderizarCategoriasAdmin();
-            renderizarSubcategoriasAdmin();
-            renderizarProductosAdmin();
+            try {
+                subcategoriasAdmin = await leerListaApi('/api/subcategorias', 'subcategorias');
+                renderizarSelects();
+                renderizarSubcategoriasAdmin();
+            } catch (err) {
+                console.error('Error cargando subcategorías:', err);
+                document.getElementById('lista-subcategorias-admin').innerHTML =
+                    `<small class="text-danger">No se pudieron cargar las subcategorías (revisa /api/subcategorias y la tabla en Supabase).</small>`;
+            }
+
+            try {
+                productosAdmin = await leerListaApi('/api/productos', 'productos');
+                renderizarProductosAdmin();
+            } catch (err) {
+                console.error('Error cargando productos:', err);
+                document.getElementById('tabla-productos-admin').innerHTML =
+                    `<tr><td colspan="5" class="text-center py-4 text-danger">Error al cargar productos.</td></tr>`;
+            }
         }
 
         function renderizarSelects() {
@@ -258,7 +303,7 @@
 
             const opcionesCat = categoriasAdmin.length
                 ? categoriasAdmin.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('')
-                : `<option value="">-- Crea una categoría primero --</option>`;
+                : `<option value="">-- No hay categorías disponibles --</option>`;
 
             selSubCatParent.innerHTML = opcionesCat;
             selProdCat.innerHTML = opcionesCat;
