@@ -540,8 +540,13 @@
                 cancelarEdicionProducto();
                 await cargarTodo();
             } else {
-                const err = await res.json().catch(() => ({}));
-                alert(err.error || 'No se pudo guardar el producto.');
+                const texto = await res.text();
+                let errMsg = `Error (${res.status}) al guardar el producto.`;
+                try {
+                    const json = JSON.parse(texto);
+                    if (json.error) errMsg = json.error;
+                } catch (_) {}
+                alert(errMsg);
             }
         }
 
