@@ -45,7 +45,6 @@
             border-bottom-right-radius: 30px;
         }
 
-        /* Tarjetas de Subcategoría (mismo estilo visual que las de productos) */
         .card-subcat {
             border: 2px solid transparent;
             border-radius: 16px;
@@ -53,7 +52,7 @@
             cursor: pointer;
             transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
             text-align: center;
-            padding: 1.25rem 1rem;
+            padding: 1.15rem 0.9rem;
         }
         .card-subcat:hover {
             transform: translateY(-5px);
@@ -67,16 +66,17 @@
             box-shadow: 0 10px 24px rgba(0, 102, 204, 0.28);
         }
         .card-subcat .icono-subcat {
-            width: 54px;
-            height: 54px;
+            width: 64px;
+            height: 64px;
             margin: 0 auto 0.75rem;
             border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.45rem;
+            font-size: 1.5rem;
             background: #e8f3ff;
             color: var(--azul-primario);
+            overflow: hidden;
         }
         .card-subcat.active .icono-subcat {
             background: rgba(255, 255, 255, 0.18);
@@ -86,7 +86,6 @@
             color: rgba(255, 255, 255, 0.85) !important;
         }
 
-        /* Tarjetas de Productos con Hover */
         .card-producto {
             border: none;
             border-radius: 15px;
@@ -104,7 +103,6 @@
             background: #e9ecef;
         }
 
-        /* Botones de Categoría */
         .btn-cat {
             border-radius: 50px;
             border: 2px solid var(--azul-primario);
@@ -118,7 +116,6 @@
             transform: scale(1.04);
         }
 
-        /* Botón Flotante Carrito */
         .fab-carrito {
             position: fixed;
             bottom: 25px;
@@ -301,6 +298,34 @@
             renderizarCarrito();
         });
 
+        function obtenerSubcategoriaIdProducto(p) {
+            if (p.subcategoria_id !== null && p.subcategoria_id !== undefined && String(p.subcategoria_id) !== '') {
+                return Number(p.subcategoria_id);
+            }
+            if (p.subcategorias && p.subcategorias.id !== null && p.subcategorias.id !== undefined) {
+                return Number(p.subcategorias.id);
+            }
+            return null;
+        }
+
+        function obtenerCategoriaIdProducto(p) {
+            if (p.categoria_id !== null && p.categoria_id !== undefined && String(p.categoria_id) !== '') {
+                return Number(p.categoria_id);
+            }
+            if (p.categorias && p.categorias.id !== null && p.categorias.id !== undefined) {
+                return Number(p.categorias.id);
+            }
+            return null;
+        }
+
+        function renderizarVisualSubcat(icono) {
+            const valor = (icono || '').trim();
+            if (/^(https?:\/\/|\/)/i.test(valor)) {
+                return `<img src="${valor}" alt="Subcategoría" class="w-100 h-100" style="object-fit: cover;" onerror="this.outerHTML='<i class=\\'fa-solid fa-tag\\'></i>'">`;
+            }
+            return `<i class="fa-solid ${valor || 'fa-tag'}"></i>`;
+        }
+
         function actualizarUIUsuario() {
             const navArea = document.getElementById('nav-auth-area');
             const alertaLogin = document.getElementById('alerta-login-pedido');
@@ -395,7 +420,8 @@
 
         async function cargarCategorias() {
             const res = await fetch('/api/categorias');
-            categoriasGlobal = await res.json();
+            const data = await res.json().catch(() => []);
+            categoriasGlobal = Array.isArray(data) ? data : [];
             const contenedor = document.getElementById('lista-categorias');
             categoriasGlobal.forEach(cat => {
                 contenedor.innerHTML += `
@@ -408,22 +434,24 @@
 
         async function cargarSubcategorias() {
             const res = await fetch('/api/subcategorias');
-            subcategoriasGlobal = await res.json();
+            const data = await res.json().catch(() => []);
+            subcategoriasGlobal = Array.isArray(data) ? data : [];
         }
 
         async function cargarProductos() {
             const res = await fetch('/api/productos');
-            productosGlobal = await res.json();
+            const data = await res.json().catch(() => []);
+            productosGlobal = Array.isArray(data) ? data : [];
             aplicarFiltros();
         }
 
         function seleccionarCategoria(idCat, btn) {
             document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            categoriaActiva = idCat;
+            if (btn) btn.classList.add('active');
+            categoriaActiva = idCat === 'todas' ? 'todas' : Number(idCat);
             subcategoriaActiva = 'todas';
 
-            renderizarTarjetasSubcategorias(idCat);
+            renderizarTarjetasSubcategorias(categoriaActiva);
             aplicarFiltros();
         }
 
@@ -459,13 +487,13 @@
             }
 
             grid.innerHTML = subsDeCategoria.map(sub => {
-                const cantidadProd = productosGlobal.filter(p => Number(p.subcategoria_id) === Number(sub.id)).length;
-                const activa = Number(subcategoriaActiva) === Number(sub.id) ? 'active' : '';
+                const cantidadProd = productosGlobal.filter(p => obtenerSubcategoriaIdProducto(p) === Number(sub.id)).length;
+                const activa = subcategoriaActiva !== 'todas' && Number(subcategoriaActiva) === Number(sub.id) ? 'active' : '';
                 return `
                     <div class="col-6 col-sm-4 col-md-3 col-lg-2">
                         <div class="card card-subcat h-100 shadow-sm ${activa}" data-sub-id="${sub.id}" onclick="seleccionarSubcategoria(${sub.id}, this)">
                             <div class="icono-subcat">
-                                <i class="fa-solid ${sub.icono || 'fa-tag'}"></i>
+                                ${renderizarVisualSubcat(sub.icono)}
                             </div>
                             <h6 class="fw-bold mb-1">${sub.nombre}</h6>
                             <small class="text-muted">${cantidadProd} ${cantidadProd === 1 ? 'producto' : 'productos'}</small>
@@ -477,9 +505,9 @@
 
         function seleccionarSubcategoria(idSub, cardEl) {
             document.querySelectorAll('.card-subcat').forEach(c => c.classList.remove('active'));
-            subcategoriaActiva = idSub;
+            subcategoriaActiva = idSub === 'todas' ? 'todas' : Number(idSub);
 
-            if (idSub !== 'todas' && cardEl) {
+            if (subcategoriaActiva !== 'todas' && cardEl) {
                 cardEl.classList.add('active');
             }
             aplicarFiltros();
@@ -490,10 +518,10 @@
             const tituloProd = document.getElementById('titulo-seccion-productos');
 
             if (categoriaActiva !== 'todas') {
-                filtrados = filtrados.filter(p => Number(p.categoria_id) === Number(categoriaActiva));
+                filtrados = filtrados.filter(p => obtenerCategoriaIdProducto(p) === Number(categoriaActiva));
             }
             if (subcategoriaActiva !== 'todas') {
-                filtrados = filtrados.filter(p => Number(p.subcategoria_id) === Number(subcategoriaActiva));
+                filtrados = filtrados.filter(p => obtenerSubcategoriaIdProducto(p) === Number(subcategoriaActiva));
             }
 
             if (subcategoriaActiva !== 'todas') {
@@ -511,7 +539,7 @@
 
         function mostrarProductos(lista) {
             const grid = document.getElementById('grid-productos');
-            if (lista.length === 0) {
+            if (!lista.length) {
                 grid.innerHTML = `<div class="col-12 text-center py-5 text-muted">No hay productos en esta selección aún.</div>`;
                 return;
             }
@@ -544,8 +572,9 @@
                 modal.show();
                 return;
             }
-            const prod = productosGlobal.find(p => p.id === idProducto);
-            const existe = carrito.find(item => item.id === idProducto);
+            const prod = productosGlobal.find(p => Number(p.id) === Number(idProducto));
+            if (!prod) return;
+            const existe = carrito.find(item => Number(item.id) === Number(idProducto));
             if (existe) {
                 existe.cantidad++;
             } else {
@@ -641,19 +670,6 @@
             guardarYRenderizarCarrito();
             window.open(urlWhatsApp, '_blank');
         }
-
-
-        async function leerListaApi(url, claveAlterna = 'categorias') {
-  const res = await fetch(url);
-  const data = await res.json().catch(() => []);
-  if (!res.ok) {
-    throw new Error(data.error || `Error al consultar ${url}`);
-  }
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.[claveAlterna])) return data[claveAlterna];
-  if (Array.isArray(data?.data)) return data.data;
-  return [];
-}
     </script>
 </body>
 </html>
