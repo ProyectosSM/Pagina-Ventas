@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador | Importaciones ABU</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <span class="navbar-brand fw-bold">
+                <i class="fa-solid fa-sliders fa-spin me-2"></i>Panel de Administración - ABU
+            </span>
+            <a href="/" class="btn btn-light btn-sm fw-bold text-primary">
+                <i class="fa-solid fa-store me-1"></i> Ver Tienda
+            </a>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+        <div class="row g-4">
+            <!-- Columna 1: Crear Categorías -->
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-info text-white fw-bold rounded-top-4">
+                        <i class="fa-solid fa-folder-plus me-2"></i>Nueva Categoría
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="crearCategoria(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Nombre de Categoría</label>
+                                <input type="text" id="cat-nombre" class="form-control" required placeholder="Ej. Audio y Sonido">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Icono FontAwesome</label>
+                                <select id="cat-icono" class="form-select">
+                                    <option value="fa-box-open">Caja / General (fa-box-open)</option>
+                                    <option value="fa-microchip">Electrónica (fa-microchip)</option>
+                                    <option value="fa-mobile-screen-button">Celulares (fa-mobile-screen-button)</option>
+                                    <option value="fa-headphones">Audio (fa-headphones)</option>
+                                    <option value="fa-blender">Hogar (fa-blender)</option>
+                                    <option value="fa-shirt">Ropa / Accesorios (fa-shirt)</option>
+                                    <option value="fa-star">Ofertas / Destacados (fa-star)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Categoría</button>
+                        </form>
+
+                        <hr>
+                        <h6 class="fw-bold text-muted">Categorías Activas</h6>
+                        <ul class="list-group list-group-flush" id="admin-lista-categorias"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna 2: Agregar Productos -->
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white fw-bold rounded-top-4">
+                        <i class="fa-solid fa-plus-circle me-2"></i>Agregar Nuevo Producto
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="crearProducto(event)" class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre del Producto</label>
+                                <input type="text" id="prod-nombre" class="form-control" required placeholder="Ej. Smartwatch Serie 9">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Categoría</label>
+                                <select id="prod-categoria" class="form-select" required></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Precio (Q)</label>
+                                <input type="number" step="0.01" id="prod-precio" class="form-control" required placeholder="150.00">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">URL de la Imagen</label>
+                                <input type="url" id="prod-imagen" class="form-control" required placeholder="https://ejemplo.com/foto.jpg">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Descripción Corta</label>
+                                <textarea id="prod-desc" class="form-control" rows="2" placeholder="Características principales del producto..."></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success fw-bold px-4">
+                                    <i class="fa-solid fa-floppy-disk me-2"></i>Publicar Producto
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Lista de Productos Publicados -->
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-dark text-white fw-bold rounded-top-4">
+                        <i class="fa-solid fa-boxes-stacked me-2"></i>Inventario Publicado
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Foto</th>
+                                    <th>Producto</th>
+                                    <th>Categoría</th>
+                                    <th>Precio</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-tabla-productos"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar seguridad de Admin
+        const usuario = JSON.parse(localStorage.getItem('usuario_abu'));
+        if (!usuario || usuario.rol !== 'admin') {
+            alert('Acceso denegado. Inicia sesión como Administrador.');
+            window.location.href = '/';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarDatosAdmin();
+        });
+
+        async function cargarDatosAdmin() {
+            // Cargar Categorías
+            const resCat = await fetch('/api/categorias');
+            const categorias = await resCat.json();
+            
+            const selectCat = document.getElementById('prod-categoria');
+            const listaCat = document.getElementById('admin-lista-categorias');
+            selectCat.innerHTML = '';
+            listaCat.innerHTML = '';
+
+            categorias.forEach(c => {
+                selectCat.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+                listaCat.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fa-solid ${c.icono} text-primary me-2"></i>${c.nombre}</span>
+                        <button class="btn btn-outline-danger btn-sm" onclick="eliminarCategoria(${c.id})">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </li>
+                `;
+            });
+
+            // Cargar Productos
+            const resProd = await fetch('/api/productos');
+            const productos = await resProd.json();
+            const tablaProd = document.getElementById('admin-tabla-productos');
+            tablaProd.innerHTML = productos.map(p => `
+                <tr>
+                    <td><img src="${p.imagen_url}" width="50" height="50" class="rounded object-fit-cover"></td>
+                    <td class="fw-bold">${p.nombre}</td>
+                    <td><span class="badge bg-info text-dark">${p.categorias?.nombre || '-'}</span></td>
+                    <td class="text-primary fw-bold">Q${parseFloat(p.precio).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="eliminarProducto(${p.id})">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function crearCategoria(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('cat-nombre').value;
+            const icono = document.getElementById('cat-icono').value;
+            await fetch('/api/categorias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre, icono })
+            });
+            document.getElementById('cat-nombre').value = '';
+            cargarDatosAdmin();
+        }
+
+        async function eliminarCategoria(id) {
+            if (!confirm('¿Eliminar esta categoría?')) return;
+            await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
+            cargarDatosAdmin();
+        }
+
+        async function crearProducto(e) {
+            e.preventDefault();
+            const body = {
+                nombre: document.getElementById('prod-nombre').value,
+                categoria_id: document.getElementById('prod-categoria').value,
+                precio: document.getElementById('prod-precio').value,
+                imagen_url: document.getElementById('prod-imagen').value,
+                descripcion: document.getElementById('prod-desc').value
+            };
+            await fetch('/api/productos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            e.target.reset();
+            cargarDatosAdmin();
+            alert('¡Producto agregado al catálogo!');
+        }
+
+        async function eliminarProducto(id) {
+            if (!confirm('¿Eliminar este producto?')) return;
+            await fetch(`/api/productos/${id}`, { method: 'DELETE' });
+            cargarDatosAdmin();
+        }
+    </script>
+</body>
+</html>
