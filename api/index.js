@@ -134,3 +134,87 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+// Obtener subcategorías
+app.get('/api/subcategorias', async (req, res) => {
+  try {
+    const { categoria_id } = req.query;
+    let query = supabase
+      .from('subcategorias')
+      .select('*, categorias(id, nombre, icono)')
+      .order('id', { ascending: true });
+
+    if (categoria_id) {
+      query = query.eq('categoria_id', categoria_id);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error GET /api/subcategorias:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error('Error inesperado GET /api/subcategorias:', err);
+    res.status(500).json({ error: 'Error al obtener subcategorías' });
+  }
+});
+
+// Crear subcategoría
+app.post('/api/subcategorias', async (req, res) => {
+  try {
+    const nombre = (req.body?.nombre || '').trim();
+    const icono = (req.body?.icono || 'fa-tag').trim();
+    const rawCatId = req.body?.categoria_id;
+
+    if (!nombre) {
+      return res.status(400).json({ error: 'El nombre de la subcategoría es obligatorio.' });
+    }
+    if (rawCatId === undefined || rawCatId === null || String(rawCatId).trim() === '') {
+      return res.status(400).json({ error: 'Debes seleccionar una categoría padre.' });
+    }
+
+    const categoriaIdLimpio = Number.isNaN(Number(rawCatId)) ? String(rawCatId).trim() : Number(rawCatId);
+
+    const { data, error } = await supabase
+      .from('subcategorias')
+      .insert([{
+        nombre,
+        icono,
+        categoria_id: categoriaIdLimpio
+      }])
+      .select('*, categorias(id, nombre, icono)')
+      .single();
+
+    if (error) {
+      console.error('Error POST /api/subcategorias:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('Error inesperado POST /api/subcategorias:', err);
+    res.status(500).json({ error: 'Error al crear la subcategoría en el servidor.' });
+  }
+});
+
+// Eliminar subcategoría
+app.delete('/api/subcategorias/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase
+      .from('subcategorias')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error DELETE /api/subcategorias/:id:', error);
+      return res.status(400).json({ error: error.message });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error inesperado DELETE /api/subcategorias/:id:', err);
+    res.status(500).json({ error: 'Error al eliminar subcategoría.' });
+  }
+});
+
