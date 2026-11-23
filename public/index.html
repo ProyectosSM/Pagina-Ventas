@@ -641,6 +641,19 @@
             guardarYRenderizarCarrito();
             window.open(urlWhatsApp, '_blank');
         }
+
+
+        async function leerListaApi(url, claveAlterna = 'categorias') {
+  const res = await fetch(url);
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    throw new Error(data.error || `Error al consultar ${url}`);
+  }
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.[claveAlterna])) return data[claveAlterna];
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
     </script>
 </body>
 </html>
