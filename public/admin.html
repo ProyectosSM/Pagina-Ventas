@@ -41,6 +41,13 @@
             border-radius: 10px;
             background: #e9ecef;
         }
+        .subcat-thumb {
+            width: 34px;
+            height: 34px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #e9ecef;
+        }
     </style>
 </head>
 <body>
@@ -76,14 +83,14 @@
                         <form onsubmit="crearCategoria(event)">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Nombre de Categoría</label>
-                                <input type="text" id="cat-nombre" class="form-control" required placeholder="Ej. Accesorios para Carro">
+                                <input type="text" id="cat-nombre" class="form-control" required placeholder="Ej. Soporte Técnico">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Icono FontAwesome</label>
                                 <select id="cat-icono" class="form-select">
+                                    <option value="fa-laptop-code">Servicios Informáticos / IT (fa-laptop-code)</option>
                                     <option value="fa-car">Carro / Vehículo (fa-car)</option>
                                     <option value="fa-motorcycle">Moto (fa-motorcycle)</option>
-                                    <option value="fa-laptop-code">Servicios Informáticos / IT (fa-laptop-code)</option>
                                     <option value="fa-bolt">Electrónica / Gadgets (fa-bolt)</option>
                                     <option value="fa-mobile-screen">Accesorios Celular (fa-mobile-screen)</option>
                                     <option value="fa-box-open">Caja / General (fa-box-open)</option>
@@ -115,17 +122,12 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Nombre de Subcategoría</label>
-                                <input type="text" id="subcat-nombre" class="form-control" required placeholder="Ej. Sonido para Carro">
+                                <input type="text" id="subcat-nombre" class="form-control" required placeholder="Ej. Impresoras">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Icono FontAwesome</label>
-                                <select id="subcat-icono" class="form-select">
-                                    <option value="fa-volume-high">Sonido / Audio (fa-volume-high)</option>
-                                    <option value="fa-lightbulb">Iluminación / LED (fa-lightbulb)</option>
-                                    <option value="fa-shield-halved">Seguridad / Alarmas (fa-shield-halved)</option>
-                                    <option value="fa-screwdriver-wrench">Accesorios / Mantenimiento (fa-screwdriver-wrench)</option>
-                                    <option value="fa-tag">Etiqueta / General (fa-tag)</option>
-                                </select>
+                                <label class="form-label fw-semibold">URL de Imagen / Icono</label>
+                                <input type="url" id="subcat-icono" class="form-control" placeholder="https://ejemplo.com/impresoras.png">
+                                <small class="text-muted">Pega la URL de la imagen que quieras mostrar en la tarjeta.</small>
                             </div>
                             <button type="submit" class="btn btn-info text-dark w-100 fw-bold">
                                 <i class="fa-solid fa-plus me-1"></i> Guardar Subcategoría
@@ -155,7 +157,7 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Nombre del Producto</label>
-                                    <input type="text" id="prod-nombre" class="form-control" required placeholder="Ej. Bocinas Pioneer 6.5">
+                                    <input type="text" id="prod-nombre" class="form-control" required placeholder="Ej. Impresora Epson EcoTank">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Categoría</label>
@@ -239,6 +241,14 @@
             cargarTodo();
         });
 
+        function renderizarVisualSubcat(icono, clasesImg = 'subcat-thumb', clasesIcono = 'text-info') {
+            const valor = (icono || '').trim();
+            if (/^(https?:\/\/|\/)/i.test(valor)) {
+                return `<img src="${valor}" alt="Subcategoría" class="${clasesImg}" onerror="this.style.display='none'">`;
+            }
+            return `<i class="fa-solid ${valor || 'fa-tag'} ${clasesIcono}"></i>`;
+        }
+
         function mostrarAlertaAdmin(mensaje) {
             const alerta = document.getElementById('alerta-api-admin');
             if (!mensaje) {
@@ -283,7 +293,7 @@
             } catch (err) {
                 console.error('Error cargando subcategorías:', err);
                 document.getElementById('lista-subcategorias-admin').innerHTML =
-                    `<small class="text-danger">No se pudieron cargar las subcategorías (revisa /api/subcategorias y la tabla en Supabase).</small>`;
+                    `<small class="text-danger">No se pudieron cargar las subcategorías.</small>`;
             }
 
             try {
@@ -328,7 +338,6 @@
                 filtradas.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
         }
 
-        // --- CATEGORÍAS ---
         async function crearCategoria(e) {
             e.preventDefault();
             const nombre = document.getElementById('cat-nombre').value.trim();
@@ -374,63 +383,63 @@
             `).join('');
         }
 
-        // --- SUBCATEGORÍAS ---
         async function crearSubcategoria(e) {
-    e.preventDefault();
-    const selectCat = document.getElementById('subcat-categoria');
-    const inputNombre = document.getElementById('subcat-nombre');
-    const selectIcono = document.getElementById('subcat-icono');
-    const btn = e.target.querySelector('button[type="submit"]');
+            e.preventDefault();
+            const selectCat = document.getElementById('subcat-categoria');
+            const inputNombre = document.getElementById('subcat-nombre');
+            const inputIcono = document.getElementById('subcat-icono');
+            const btn = e.target.querySelector('button[type="submit"]');
 
-    const categoria_id = selectCat ? selectCat.value : '';
-    const nombre = inputNombre ? inputNombre.value.trim() : '';
-    const icono = selectIcono ? selectIcono.value : 'fa-tag';
+            const categoria_id = selectCat ? selectCat.value : '';
+            const nombre = inputNombre ? inputNombre.value.trim() : '';
+            const icono = inputIcono ? inputIcono.value.trim() : '';
 
-    if (!categoria_id) {
-        alert('Selecciona primero una categoría padre.');
-        return;
-    }
-    if (!nombre) {
-        alert('Escribe el nombre de la subcategoría.');
-        return;
-    }
+            if (!categoria_id) {
+                alert('Selecciona primero una categoría padre.');
+                return;
+            }
+            if (!nombre) {
+                alert('Escribe el nombre de la subcategoría.');
+                return;
+            }
 
-    const textoOriginal = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...';
-    }
+            const textoOriginal = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...';
+            }
 
-    try {
-        const res = await fetch('/api/subcategorias', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                categoria_id: Number.isNaN(Number(categoria_id)) ? categoria_id : Number(categoria_id),
-                nombre,
-                icono
-            })
-        });
+            try {
+                const res = await fetch('/api/subcategorias', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        categoria_id: Number.isNaN(Number(categoria_id)) ? categoria_id : Number(categoria_id),
+                        nombre,
+                        icono: icono || 'fa-tag'
+                    })
+                });
 
-        const data = await res.json().catch(() => ({}));
+                const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-            alert(data.error || `Error (${res.status}) al guardar la subcategoría.`);
-            return;
+                if (!res.ok) {
+                    alert(data.error || `Error (${res.status}) al guardar la subcategoría.`);
+                    return;
+                }
+
+                inputNombre.value = '';
+                if (inputIcono) inputIcono.value = '';
+                await cargarTodo();
+            } catch (err) {
+                console.error('Error al crear subcategoría:', err);
+                alert('Error de conexión con /api/subcategorias.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = textoOriginal;
+                }
+            }
         }
-
-        inputNombre.value = '';
-        await cargarTodo();
-    } catch (err) {
-        console.error('Error al crear subcategoría:', err);
-        alert('Error de conexión con /api/subcategorias.');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = textoOriginal;
-        }
-    }
-}
 
         async function eliminarSubcategoria(id) {
             if (!confirm('¿Eliminar esta subcategoría?')) return;
@@ -446,9 +455,9 @@
             }
             cont.innerHTML = subcategoriasAdmin.map(s => `
                 <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                    <div>
-                        <span class="badge bg-primary me-1">${s.categorias?.nombre || 'Categoría'}</span>
-                        <i class="fa-solid ${s.icono || 'fa-tag'} text-info me-1"></i>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary">${s.categorias?.nombre || 'Categoría'}</span>
+                        ${renderizarVisualSubcat(s.icono)}
                         <strong>${s.nombre}</strong>
                     </div>
                     <button class="btn btn-outline-danger btn-sm" onclick="eliminarSubcategoria(${s.id})">
@@ -458,7 +467,6 @@
             `).join('');
         }
 
-        // --- PRODUCTOS ---
         async function crearProducto(e) {
             e.preventDefault();
             const nombre = document.getElementById('prod-nombre').value.trim();
