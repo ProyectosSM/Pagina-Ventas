@@ -50,11 +50,23 @@ app.post('/api/login', async (req, res) => {
 
 // --- RUTAS DE CATEGORÍAS Y PRODUCTOS ---
 
-// Obtener categorías
 app.get('/api/categorias', async (req, res) => {
-    const { data, error } = await supabase.from('categorias').select('*').order('id');
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+  try {
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) {
+      console.error('Error en GET /api/categorias:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error('Error inesperado en /api/categorias:', err);
+    res.status(500).json({ error: 'Error al obtener categorías' });
+  }
 });
 
 // Crear categoría (Admin)
