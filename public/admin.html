@@ -376,30 +376,61 @@
 
         // --- SUBCATEGORÍAS ---
         async function crearSubcategoria(e) {
-            e.preventDefault();
-            const categoria_id = document.getElementById('subcat-categoria').value;
-            const nombre = document.getElementById('subcat-nombre').value.trim();
-            const icono = document.getElementById('subcat-icono').value;
+    e.preventDefault();
+    const selectCat = document.getElementById('subcat-categoria');
+    const inputNombre = document.getElementById('subcat-nombre');
+    const selectIcono = document.getElementById('subcat-icono');
+    const btn = e.target.querySelector('button[type="submit"]');
 
-            if (!categoria_id) {
-                alert('Selecciona primero una categoría padre.');
-                return;
-            }
+    const categoria_id = selectCat ? selectCat.value : '';
+    const nombre = inputNombre ? inputNombre.value.trim() : '';
+    const icono = selectIcono ? selectIcono.value : 'fa-tag';
 
-            const res = await fetch('/api/subcategorias', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ categoria_id, nombre, icono })
-            });
+    if (!categoria_id) {
+        alert('Selecciona primero una categoría padre.');
+        return;
+    }
+    if (!nombre) {
+        alert('Escribe el nombre de la subcategoría.');
+        return;
+    }
 
-            if (res.ok) {
-                document.getElementById('subcat-nombre').value = '';
-                await cargarTodo();
-            } else {
-                const err = await res.json().catch(() => ({}));
-                alert(err.error || 'No se pudo guardar la subcategoría.');
-            }
+    const textoOriginal = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...';
+    }
+
+    try {
+        const res = await fetch('/api/subcategorias', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                categoria_id: Number.isNaN(Number(categoria_id)) ? categoria_id : Number(categoria_id),
+                nombre,
+                icono
+            })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            alert(data.error || `Error (${res.status}) al guardar la subcategoría.`);
+            return;
         }
+
+        inputNombre.value = '';
+        await cargarTodo();
+    } catch (err) {
+        console.error('Error al crear subcategoría:', err);
+        alert('Error de conexión con /api/subcategorias.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        }
+    }
+}
 
         async function eliminarSubcategoria(id) {
             if (!confirm('¿Eliminar esta subcategoría?')) return;
