@@ -50,6 +50,7 @@ app.post('/api/login', async (req, res) => {
 
 // --- RUTAS DE CATEGORÍAS Y PRODUCTOS ---
 
+// --- CATEGORÍAS ---
 app.get('/api/categorias', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -58,80 +59,224 @@ app.get('/api/categorias', async (req, res) => {
       .order('id', { ascending: true });
 
     if (error) {
-      console.error('Error en GET /api/categorias:', error);
+      console.error('Error GET /api/categorias:', error);
       return res.status(500).json({ error: error.message });
     }
-
     res.json(Array.isArray(data) ? data : []);
   } catch (err) {
-    console.error('Error inesperado en /api/categorias:', err);
+    console.error('Error inesperado GET /api/categorias:', err);
     res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });
 
-// Crear categoría (Admin)
 app.post('/api/categorias', async (req, res) => {
-    const { nombre, icono } = req.body;
+  try {
+    const nombre = (req.body?.nombre || '').trim();
+    const icono = (req.body?.icono || 'fa-tag').trim();
+    if (!nombre) {
+      return res.status(400).json({ error: 'El nombre de la categoría es obligatorio.' });
+    }
+
     const { data, error } = await supabase
-        .from('categorias')
-        .insert([{ nombre, icono: icono || 'fa-tag' }])
-        .select();
-    if (error) return res.status(400).json({ error: error.message });
-    res.json(data);
+      .from('categorias')
+      .insert([{ nombre, icono }])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error POST /api/categorias:', error);
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('Error inesperado POST /api/categorias:', err);
+    res.status(500).json({ error: 'Error al crear la categoría' });
+  }
 });
 
-// Eliminar categoría (Admin)
 app.delete('/api/categorias/:id', async (req, res) => {
-    const { error } = await supabase.from('categorias').delete().eq('id', req.params.id);
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('categorias').delete().eq('id', id);
     if (error) return res.status(400).json({ error: error.message });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar categoría' });
+  }
 });
 
-// Obtener productos con nombre de categoría
+// --- SUBCATEGORÍAS ---
+app.get('/api/subcategorias', async (req, res) => {
+  try {
+    const { categoria_id } = req.query;
+    let query = supabase
+      .from('subcategorias')
+      .select('*, categorias!categoria_id(id, nombre, icono)')
+      .order('id', { ascending: true });
+
+    if (categoria_id) {
+      query = query.eq('categoria_id', categoria_id);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error GET /api/subcategorias:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error('Error inesperado GET /api/subcategorias:', err);
+    res.status(500).json({ error: 'Error al obtener subcategorías' });
+  }
+});
+
+app.post('/api/subcategorias', async (req, res) => {
+  try {
+    const nombre = (req.body?.nombre || '').trim();
+    const icono = (req.body?.icono || 'fa-tag').trim();
+    const rawCatId = req.body?.categoria_id;
+
+    if (!nombre) {
+      return res.status(400).json({ error: 'El nombre de la subcategoría es obligatorio.' });
+    }
+    if (rawCatId === undefined || rawCatId === null || String(rawCatId).trim() === '') {
+      return res.status(400).json({ error: 'Debes seleccionar una categoría padre.' });
+    }
+
+    const categoriaIdLimpio = Number.isNaN(Number(rawCatId)) ? String(rawCatId).trim() : Number(rawCatId);
+
+    const { data, error } = await supabase
+      .from('subcategorias')
+      .insert([{
+        nombre,
+        icono,
+        categoria_id: categoriaIdLimpio
+      }])
+      .select('*, categorias!categoria_id(id, nombre, icono)')
+      .single();
+
+    if (error) {
+      console.error('Error POST /api/subcategorias:', error);
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('Error inesperado POST /api/subcategorias:', err);
+    res.status(500).json({ error: 'Error al crear la subcategoría en el servidor.' });
+  }
+});
+
+app.delete('/api/subcategorias/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('subcategorias').delete().eq('id', id);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar subcategoría' });
+  }
+});
+
+// --- PRODUCTOS ---
 app.get('/api/productos', async (req, res) => {
+  try {
     const { data, error } = await supabase
-        .from('productos')
-        .select('*, categorias(nombre)')
-        .order('id', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+      .from('productos')
+      .select('*, categorias!categoria_id(id, nombre, icono), subcategorias!subcategoria_id(id, nombre, icono, categoria_id)')
+      .order('id', { ascending: false });
+
+    if (error) {
+      console.error('Error GET /api/productos:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error('Error inesperado GET /api/productos:', err);
+    res.status(500).json({ error: 'Error al obtener productos' });
+  }
 });
 
-// Crear producto (Admin)
 app.post('/api/productos', async (req, res) => {
-    const { categoria_id, nombre, descripcion, precio, imagen_url } = req.body;
+  try {
+    const { nombre, categoria_id, subcategoria_id, precio, imagen_url, descripcion } = req.body;
+    const subIdLimpio =
+      subcategoria_id !== undefined &&
+      subcategoria_id !== null &&
+      String(subcategoria_id).trim() !== ''
+        ? Number(subcategoria_id)
+        : null;
+
     const { data, error } = await supabase
-        .from('productos')
-        .insert([{ categoria_id, nombre, descripcion, precio, imagen_url }])
-        .select();
-    if (error) return res.status(400).json({ error: error.message });
-    res.json(data);
+      .from('productos')
+      .insert([{
+        nombre,
+        categoria_id: categoria_id ? Number(categoria_id) : null,
+        subcategoria_id: subIdLimpio,
+        precio: Number(precio),
+        imagen_url,
+        descripcion
+      }])
+      .select('*, categorias!categoria_id(id, nombre, icono), subcategorias!subcategoria_id(id, nombre, icono, categoria_id)')
+      .single();
+
+    if (error) {
+      console.error('Error POST /api/productos:', error);
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('Error inesperado POST /api/productos:', err);
+    res.status(500).json({ error: 'Error al crear producto' });
+  }
 });
 
-// Eliminar producto (Admin)
+app.put('/api/productos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, categoria_id, subcategoria_id, precio, imagen_url, descripcion } = req.body;
+
+    const subIdLimpio =
+      subcategoria_id !== undefined &&
+      subcategoria_id !== null &&
+      String(subcategoria_id).trim() !== ''
+        ? Number(subcategoria_id)
+        : null;
+
+    const { data, error } = await supabase
+      .from('productos')
+      .update({
+        nombre,
+        categoria_id: categoria_id ? Number(categoria_id) : null,
+        subcategoria_id: subIdLimpio,
+        precio: Number(precio),
+        imagen_url,
+        descripcion
+      })
+      .eq('id', id)
+      .select('*, categorias!categoria_id(id, nombre, icono), subcategorias!subcategoria_id(id, nombre, icono, categoria_id)')
+      .single();
+
+    if (error) {
+      console.error('Error PUT /api/productos/:id:', error);
+      return res.status(400).json({ error: error.message });
+    }
+    res.json(data);
+  } catch (err) {
+    console.error('Error inesperado PUT /api/productos/:id:', err);
+    res.status(500).json({ error: err.message || 'Error al actualizar el producto.' });
+  }
+});
+
 app.delete('/api/productos/:id', async (req, res) => {
-    const { error } = await supabase.from('productos').delete().eq('id', req.params.id);
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('productos').delete().eq('id', id);
     if (error) return res.status(400).json({ error: error.message });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar producto' });
+  }
 });
-
-// --- RUTA DE PEDIDOS ---
-app.post('/api/pedidos', async (req, res) => {
-    const { usuario_id, detalle, total } = req.body;
-    const { data, error } = await supabase
-        .from('pedidos')
-        .insert([{ usuario_id, detalle, total }])
-        .select()
-        .single();
-    if (error) return res.status(400).json({ error: error.message });
-    res.json(data);
-});
-
-// Exportar para Vercel y escuchar en local
-const PORT = process.env.PORT || 3000;
-if (require.main === module) {
-    app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
-}
 
 module.exports = app;
 
