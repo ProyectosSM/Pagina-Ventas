@@ -147,13 +147,17 @@
             <!-- Columna Derecha: Nuevo Producto e Inventario -->
             <div class="col-lg-7">
 
-                <!-- 3. Agregar Nuevo Producto -->
+                <!-- 3. Agregar / Editar Producto -->
                 <div class="card card-panel shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white fw-bold py-3">
-                        <i class="fa-solid fa-circle-plus me-2"></i>Agregar Nuevo Producto
+                    <div class="card-header bg-primary text-white fw-bold py-3 d-flex justify-content-between align-items-center" id="header-form-producto">
+                        <span><i class="fa-solid fa-circle-plus me-2"></i>Agregar Nuevo Producto</span>
+                        <button type="button" class="btn btn-light btn-sm d-none" id="btn-cancelar-edicion" onclick="cancelarEdicionProducto()">
+                            Cancelar edición
+                        </button>
                     </div>
                     <div class="card-body p-4">
-                        <form onsubmit="crearProducto(event)">
+                        <form id="form-producto" onsubmit="guardarProducto(event)">
+                            <input type="hidden" id="prod-id">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Nombre del Producto</label>
@@ -182,7 +186,7 @@
                                     <textarea id="prod-descripcion" rows="2" class="form-control" placeholder="Características principales del producto..."></textarea>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-success w-100 fw-bold mt-3 py-2">
+                            <button type="submit" id="btn-guardar-producto" class="btn btn-success w-100 fw-bold mt-3 py-2">
                                 <i class="fa-solid fa-cloud-arrow-up me-1"></i> Publicar Producto
                             </button>
                         </form>
@@ -325,7 +329,7 @@
             cargarSelectSubcategorias(selProdCat.value);
         }
 
-        function cargarSelectSubcategorias(categoriaId) {
+        function cargarSelectSubcategorias(categoriaId, subcategoriaSeleccionada = '') {
             const selProdSub = document.getElementById('prod-subcategoria');
             if (!categoriaId) {
                 selProdSub.innerHTML = `<option value="">-- Sin subcategoría --</option>`;
@@ -336,6 +340,10 @@
             selProdSub.innerHTML =
                 `<option value="">-- Sin subcategoría --</option>` +
                 filtradas.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
+
+            if (subcategoriaSeleccionada !== '' && subcategoriaSeleccionada !== null && subcategoriaSeleccionada !== undefined) {
+                selProdSub.value = String(subcategoriaSeleccionada);
+            }
         }
 
         async function crearCategoria(e) {
@@ -449,6 +457,7 @@
 
         function renderizarSubcategoriasAdmin() {
             const cont = document.getElementById('lista-subcategorias-admin');
+            if (!cont) return;
             if (!subcategoriasAdmin.length) {
                 cont.innerHTML = `<small class="text-muted">No hay subcategorías registradas.</small>`;
                 return;
@@ -467,8 +476,41 @@
             `).join('');
         }
 
-        async function crearProducto(e) {
+        function editarProducto(id) {
+            const prod = productosAdmin.find(p => Number(p.id) === Number(id));
+            if (!prod) return;
+
+            document.getElementById('prod-id').value = prod.id;
+            document.getElementById('prod-nombre').value = prod.nombre || '';
+            document.getElementById('prod-categoria').value = prod.categoria_id || '';
+            cargarSelectSubcategorias(prod.categoria_id, prod.subcategoria_id || '');
+            document.getElementById('prod-precio').value = prod.precio || 0;
+            document.getElementById('prod-imagen').value = prod.imagen_url || '';
+            document.getElementById('prod-descripcion').value = prod.descripcion || '';
+
+            document.getElementById('header-form-producto').querySelector('span').innerHTML =
+                `<i class="fa-solid fa-pen-to-square me-2"></i>Editando Producto #${prod.id}`;
+            document.getElementById('btn-cancelar-edicion').classList.remove('d-none');
+            document.getElementById('btn-guardar-producto').innerHTML =
+                `<i class="fa-solid fa-floppy-disk me-1"></i> Guardar Cambios del Producto`;
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelarEdicionProducto() {
+            document.getElementById('form-producto').reset();
+            document.getElementById('prod-id').value = '';
+            document.getElementById('header-form-producto').querySelector('span').innerHTML =
+                `<i class="fa-solid fa-circle-plus me-2"></i>Agregar Nuevo Producto`;
+            document.getElementById('btn-cancelar-edicion').classList.add('d-none');
+            document.getElementById('btn-guardar-producto').innerHTML =
+                `<i class="fa-solid fa-cloud-arrow-up me-1"></i> Publicar Producto`;
+            cargarSelectSubcategorias(document.getElementById('prod-categoria').value, '');
+        }
+
+        async function guardarProducto(e) {
             e.preventDefault();
+            const idEdit = document.getElementById('prod-id').value;
             const nombre = document.getElementById('prod-nombre').value.trim();
             const categoria_id = document.getElementById('prod-categoria').value;
             const subcategoriaVal = document.getElementById('prod-subcategoria').value;
@@ -477,8 +519,12 @@
             const imagen_url = document.getElementById('prod-imagen').value.trim();
             const descripcion = document.getElementById('prod-descripcion').value.trim();
 
-            const res = await fetch('/api/productos', {
-                method: 'POST',
+            const esEdicion = Boolean(idEdit);
+            const url = esEdicion ? `/api/productos/${idEdit}` : '/api/productos';
+            const method = esEdicion ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     nombre,
@@ -491,12 +537,11 @@
             });
 
             if (res.ok) {
-                e.target.reset();
-                cargarSelectSubcategorias(document.getElementById('prod-categoria').value);
+                cancelarEdicionProducto();
                 await cargarTodo();
             } else {
                 const err = await res.json().catch(() => ({}));
-                alert(err.error || 'No se pudo publicar el producto.');
+                alert(err.error || 'No se pudo guardar el producto.');
             }
         }
 
@@ -524,8 +569,11 @@
                         ${p.subcategorias?.nombre ? `<br><span class="badge bg-info text-dark mt-1">${p.subcategorias.nombre}</span>` : ''}
                     </td>
                     <td class="fw-bold text-primary">Q${parseFloat(p.precio).toFixed(2)}</td>
-                    <td class="text-end">
-                        <button class="btn btn-danger btn-sm" onclick="eliminarProducto(${p.id})">
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-warning btn-sm me-1" title="Editar" onclick="editarProducto(${p.id})">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm" title="Eliminar" onclick="eliminarProducto(${p.id})">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </td>
