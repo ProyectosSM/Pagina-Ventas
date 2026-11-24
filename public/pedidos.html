@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Pedidos | AUTOTECH GT</title>
+    <link rel="icon" type="image/png" href="/logo-autotech.png">
+    <link rel="shortcut icon" type="image/png" href="/logo-autotech.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --azul-oscuro: #0a2540;
+            --azul-primario: #0066cc;
+            --celeste-fondo: #f0f6fc;
+        }
+        body {
+            background-color: var(--celeste-fondo);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-admin {
+            background: linear-gradient(135deg, var(--azul-oscuro) 0%, var(--azul-primario) 100%);
+            box-shadow: 0 4px 15px rgba(0, 102, 204, 0.25);
+        }
+        .logo-navbar {
+            height: 40px;
+            width: auto;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 2px 6px;
+        }
+        .card-pedido-item {
+            border: 1px solid #dbe7f5;
+            border-radius: 16px;
+            background: #ffffff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-pedido-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 22px rgba(0, 102, 204, 0.12);
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark navbar-admin sticky-top mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="/pedidos.html">
+                <img src="/logo-autotech.png" alt="Logo AUTOTECH GT" class="logo-navbar me-2">
+                <span>Pedidos - AUTOTECH GT</span>
+            </a>
+            <div class="d-flex gap-2">
+                <a href="/admin.html" class="btn btn-warning btn-sm fw-bold rounded-pill px-3">
+                    <i class="fa-solid fa-gear me-1"></i> Panel Admin
+                </a>
+                <a href="/index.html" class="btn btn-light btn-sm fw-bold rounded-pill px-3">
+                    <i class="fa-solid fa-store me-1"></i> Ver Tienda
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <h4 class="fw-bold text-dark mb-0">
+                <i class="fa-solid fa-clipboard-check text-primary me-2"></i>Todos los Pedidos
+            </h4>
+            <button class="btn btn-primary btn-sm fw-bold rounded-pill px-3" onclick="cargarPedidos()">
+                <i class="fa-solid fa-rotate-right me-1"></i> Actualizar
+            </button>
+        </div>
+
+        <div class="row g-3" id="grid-pedidos">
+            <div class="col-12 text-center py-5 text-muted">Cargando pedidos...</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let pedidosLista = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const usuario = JSON.parse(localStorage.getItem('usuario_abu') || 'null');
+            if (!usuario || usuario.rol !== 'admin') {
+                window.location.href = '/index.html';
+                return;
+            }
+            cargarPedidos();
+        });
+
+        async function cargarPedidos() {
+            const grid = document.getElementById('grid-pedidos');
+            try {
+                const res = await fetch('/api/pedidos');
+                const data = await res.json().catch(() => []);
+                if (!res.ok) {
+                    grid.innerHTML = `<div class="col-12"><div class="alert alert-danger rounded-4">${data.error || 'No se pudieron cargar los pedidos.'}</div></div>`;
+                    return;
+                }
+                pedidosLista = Array.isArray(data) ? data : [];
+                renderizarPedidos();
+            } catch (err) {
+                console.error('Error cargando pedidos:', err);
+                grid.innerHTML = `<div class="col-12"><div class="alert alert-danger rounded-4">Error de conexión al cargar los pedidos.</div></div>`;
+            }
+        }
+
+        async function completarPedido(idPedido, btnEl) {
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Completando...';
+            }
+
+            try {
+                const res = await fetch(`/api/pedidos/${idPedido}/estado`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado: 'completado' })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    alert(data.error || 'No se pudo marcar el pedido como completado.');
+                    if (btnEl) {
+                        btnEl.disabled = false;
+                        btnEl.innerHTML = '<i class="fa-solid fa-check me-1"></i>Completar';
+                    }
+                    return;
+                }
+                await cargarPedidos();
+            } catch (err) {
+                console.error('Error completando pedido:', err);
+                alert('Error de conexión al completar el pedido.');
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.innerHTML = '<i class="fa-solid fa-check me-1"></i>Completar';
+                }
+            }
+        }
+
+        function renderizarPedidos() {
+            const grid = document.getElementById('grid-pedidos');
+            if (!pedidosLista.length) {
+                grid.innerHTML = `<div class="col-12"><div class="card card-pedido-item p-4 text-center text-muted">No hay pedidos registrados aún.</div></div>`;
+                return;
+            }
+
+            grid.innerHTML = pedidosLista.map(p => {
+                const estadoActual = (p.estado || 'pendiente').toLowerCase();
+                const esCompletado = estadoActual === 'completado' || estadoActual === 'entregado';
+                const nombreCliente = p.cliente?.nombre || `Usuario #${p.usuario_id || '—'}`;
+                const telCliente = p.cliente?.telefono
+                    ? `<small class="text-muted d-block"><i class="fa-brands fa-whatsapp text-success me-1"></i>${p.cliente.telefono}</small>`
+                    : '';
+                const fecha = p.created_at ? new Date(p.created_at).toLocaleString('es-GT') : '';
+
+                return `
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <div class="card card-pedido-item h-100 shadow-sm p-3 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold fs-6 text-dark">Pedido #${p.id}</span>
+                                        ${fecha ? `<small class="text-muted d-block">${fecha}</small>` : ''}
+                                    </div>
+                                    ${esCompletado
+                                        ? `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Completado</span>`
+                                        : `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>`}
+                                </div>
+
+                                <div class="mb-2">
+                                    <strong class="text-dark">${nombreCliente}</strong>
+                                    ${telCliente}
+                                </div>
+
+                                <div class="bg-light p-2 rounded-3 small mb-3" style="white-space: pre-line;">${p.detalle || ''}</div>
+                            </div>
+
+                            <div class="border-top pt-2 d-flex justify-content-between align-items-center gap-2">
+                                <span class="fw-bold text-primary fs-6">Q${parseFloat(p.total || 0).toFixed(2)}</span>
+                                ${esCompletado
+                                    ? `<span class="badge bg-light text-success border border-success px-3 py-2">
+                                            <i class="fa-solid fa-check-double me-1"></i>Completado
+                                       </span>`
+                                    : `<button class="btn btn-success btn-sm fw-bold px-3" onclick="completarPedido(${p.id}, this)">
+                                            <i class="fa-solid fa-check me-1"></i>Completar
+                                       </button>`}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
