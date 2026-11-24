@@ -45,47 +45,6 @@
             border-bottom-right-radius: 30px;
         }
 
-        /* ===== Buscador ===== */
-        .buscador-wrap {
-            max-width: 640px;
-        }
-        .buscador {
-            border-radius: 50px;
-            overflow: hidden;
-            background: #ffffff;
-            border: 2px solid transparent;
-            transition: border-color 0.25s ease, box-shadow 0.25s ease;
-        }
-        .buscador:focus-within {
-            border-color: var(--azul-brillante);
-            box-shadow: 0 6px 20px rgba(0, 102, 204, 0.22) !important;
-        }
-        .buscador .input-group-text,
-        .buscador .form-control,
-        .buscador .btn {
-            border: none;
-            background: transparent;
-            box-shadow: none;
-        }
-        .buscador .input-group-text {
-            color: var(--azul-primario);
-            padding-left: 1.2rem;
-        }
-        .buscador .form-control:focus {
-            background: transparent;
-            box-shadow: none;
-        }
-        .buscador .btn-limpiar {
-            color: #6c757d;
-            padding-right: 1.2rem;
-        }
-        .buscador .btn-limpiar:hover {
-            color: #dc3545;
-        }
-        .buscador input[type="search"]::-webkit-search-cancel-button {
-            display: none;
-        }
-
         .card-subcat {
             border: 2px solid transparent;
             border-radius: 16px;
@@ -133,6 +92,7 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             overflow: hidden;
             background: #fff;
+            cursor: pointer;
         }
         .card-producto:hover {
             transform: translateY(-7px);
@@ -142,6 +102,12 @@
             height: 210px;
             object-fit: cover;
             background: #e9ecef;
+        }
+        .descripcion-corta {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .btn-cat {
@@ -176,7 +142,7 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark navbar-abu sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="#">
+            <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="/index.html">
                 <img src="/logo-autotech.png" alt="Logo AUTOTECH GT" class="logo-navbar me-2">
                 <span>AUTO TECH</span>
             </a>
@@ -189,26 +155,12 @@
             <h1 class="fw-bold display-5 mb-2">
                 <i class="fa-solid fa-bolt fa-beat-fade text-warning me-2"></i>Los Mejores Productos Importados
             </h1>
-            <p class="lead mb-3">Inicia sesión, arma tu pedido y envíalo directo a nuestro WhatsApp para confirmar tu comprobante.</p>
+            <p class="lead mb-3">Explora cada producto, revisa sus detalles y arma tu pedido directo a nuestro WhatsApp.</p>
             <div class="d-inline-block bg-white text-primary px-4 py-2 rounded-pill fw-bold shadow-sm">
-                <i class="fa-brands fa-whatsapp fa-shake text-success me-2"></i>Pedidos y Comprobantes por medio de Whatsapp
+                <i class="fa-brands fa-whatsapp fa-shake text-success me-2"></i>Pedidos y Comprobantes: 4171-4540
             </div>
         </div>
     </section>
-
-    <!-- 0. Buscador -->
-    <div class="container mb-4">
-        <div class="buscador-wrap mx-auto">
-            <div class="input-group input-group-lg shadow-sm buscador">
-                <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="search" id="input-busqueda" class="form-control" placeholder="Buscar productos, categorías o subcategorías..." autocomplete="off" aria-label="Buscar productos">
-                <button type="button" id="btn-limpiar-busqueda" class="btn btn-limpiar d-none" onclick="limpiarBusqueda()" aria-label="Limpiar búsqueda">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                </button>
-            </div>
-            <small id="info-busqueda" class="d-block text-center text-muted mt-2"></small>
-        </div>
-    </div>
 
     <!-- 1. Categorías Arriba -->
     <div class="container mb-4">
@@ -344,76 +296,15 @@
         let subcategoriasGlobal = [];
         let categoriaActiva = 'todas';
         let subcategoriaActiva = 'todas';
-        let terminoBusqueda = '';
-        let temporizadorBusqueda = null;
         let carrito = JSON.parse(localStorage.getItem('carrito_abu')) || [];
         let usuarioActual = JSON.parse(localStorage.getItem('usuario_abu')) || null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             actualizarUIUsuario();
-            iniciarBuscador();
             await Promise.all([cargarCategorias(), cargarSubcategorias(), cargarProductos()]);
             renderizarCarrito();
         });
 
-        /* ===== Utilidades de búsqueda ===== */
-        function normalizarTexto(texto) {
-            return (texto ?? '')
-                .toString()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .toLowerCase()
-                .trim();
-        }
-
-        function escaparHTML(texto) {
-            const div = document.createElement('div');
-            div.textContent = texto ?? '';
-            return div.innerHTML;
-        }
-
-        function iniciarBuscador() {
-            const input = document.getElementById('input-busqueda');
-            input.addEventListener('input', () => {
-                clearTimeout(temporizadorBusqueda);
-                temporizadorBusqueda = setTimeout(() => {
-                    terminoBusqueda = input.value;
-                    document.getElementById('btn-limpiar-busqueda')
-                        .classList.toggle('d-none', input.value.trim() === '');
-                    aplicarFiltros();
-                }, 200);
-            });
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') limpiarBusqueda();
-            });
-        }
-
-        function limpiarBusqueda() {
-            const input = document.getElementById('input-busqueda');
-            input.value = '';
-            terminoBusqueda = '';
-            document.getElementById('btn-limpiar-busqueda').classList.add('d-none');
-            aplicarFiltros();
-            input.focus();
-        }
-
-        function productoCoincideConBusqueda(p, palabras) {
-            const idCat = obtenerCategoriaIdProducto(p);
-            const idSub = obtenerSubcategoriaIdProducto(p);
-            const catObj = categoriasGlobal.find(c => Number(c.id) === idCat);
-            const subObj = subcategoriasGlobal.find(s => Number(s.id) === idSub);
-
-            const textoProducto = normalizarTexto([
-                p.nombre,
-                p.descripcion,
-                p.categorias?.nombre || catObj?.nombre,
-                p.subcategorias?.nombre || subObj?.nombre
-            ].join(' '));
-
-            return palabras.every(palabra => textoProducto.includes(palabra));
-        }
-
-        /* ===== Utilidades de IDs ===== */
         function obtenerSubcategoriaIdProducto(p) {
             if (p.subcategoria_id !== null && p.subcategoria_id !== undefined && String(p.subcategoria_id) !== '') {
                 return Number(p.subcategoria_id);
@@ -440,6 +331,10 @@
                 return `<img src="${valor}" alt="Subcategoría" class="w-100 h-100" style="object-fit: cover;" onerror="this.outerHTML='<i class=\\'fa-solid fa-tag\\'></i>'">`;
             }
             return `<i class="fa-solid ${valor || 'fa-tag'}"></i>`;
+        }
+
+        function verDetalleProducto(idProducto) {
+            window.location.href = `/producto.html?id=${encodeURIComponent(idProducto)}`;
         }
 
         function actualizarUIUsuario() {
@@ -632,7 +527,6 @@
         function aplicarFiltros() {
             let filtrados = [...productosGlobal];
             const tituloProd = document.getElementById('titulo-seccion-productos');
-            const infoBusqueda = document.getElementById('info-busqueda');
 
             if (categoriaActiva !== 'todas') {
                 filtrados = filtrados.filter(p => obtenerCategoriaIdProducto(p) === Number(categoriaActiva));
@@ -641,18 +535,7 @@
                 filtrados = filtrados.filter(p => obtenerSubcategoriaIdProducto(p) === Number(subcategoriaActiva));
             }
 
-            // Filtro de búsqueda (sin distinguir mayúsculas ni acentos, todas las palabras deben coincidir)
-            const textoBuscado = terminoBusqueda.trim();
-            const buscando = textoBuscado !== '';
-            if (buscando) {
-                const palabras = normalizarTexto(textoBuscado).split(/\s+/).filter(Boolean);
-                filtrados = filtrados.filter(p => productoCoincideConBusqueda(p, palabras));
-            }
-
-            // Títulos
-            if (buscando) {
-                tituloProd.innerHTML = `<i class="fa-solid fa-magnifying-glass text-primary me-2"></i>Resultados para "${escaparHTML(textoBuscado)}"`;
-            } else if (subcategoriaActiva !== 'todas') {
+            if (subcategoriaActiva !== 'todas') {
                 const subObj = subcategoriasGlobal.find(s => Number(s.id) === Number(subcategoriaActiva));
                 tituloProd.innerHTML = `<i class="fa-solid fa-box-open text-primary me-2"></i>Productos en ${subObj ? subObj.nombre : 'Subcategoría'}`;
             } else if (categoriaActiva !== 'todas') {
@@ -662,31 +545,18 @@
                 tituloProd.innerHTML = `<i class="fa-solid fa-box-open text-primary me-2"></i>Todos los Productos`;
             }
 
-            // Contador de resultados
-            if (buscando) {
-                infoBusqueda.textContent = `${filtrados.length} ${filtrados.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}`;
-            } else {
-                infoBusqueda.textContent = '';
-            }
-
-            mostrarProductos(filtrados, buscando);
+            mostrarProductos(filtrados);
         }
 
-        function mostrarProductos(lista, buscando = false) {
+        function mostrarProductos(lista) {
             const grid = document.getElementById('grid-productos');
             if (!lista.length) {
-                grid.innerHTML = buscando
-                    ? `<div class="col-12 text-center py-5 text-muted">
-                            <i class="fa-solid fa-magnifying-glass-minus fa-2x mb-2 d-block"></i>
-                            No encontramos productos con esa búsqueda.<br>
-                            <button class="btn btn-outline-primary btn-sm rounded-pill mt-3 px-3" onclick="limpiarBusqueda()">Limpiar búsqueda</button>
-                       </div>`
-                    : `<div class="col-12 text-center py-5 text-muted">No hay productos en esta selección aún.</div>`;
+                grid.innerHTML = `<div class="col-12 text-center py-5 text-muted">No hay productos en esta selección aún.</div>`;
                 return;
             }
             grid.innerHTML = lista.map(p => `
                 <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                    <div class="card card-producto h-100 shadow-sm">
+                    <div class="card card-producto h-100 shadow-sm" onclick="verDetalleProducto(${p.id})">
                         <img src="${p.imagen_url || 'https://via.placeholder.com/300x200?text=Sin+Imagen'}" class="card-img-top" alt="${p.nombre}">
                         <div class="card-body d-flex flex-column">
                             <div class="d-flex flex-wrap gap-1 mb-2">
@@ -694,34 +564,17 @@
                                 ${p.subcategorias?.nombre ? `<span class="badge bg-info text-dark">${p.subcategorias.nombre}</span>` : ''}
                             </div>
                             <h5 class="card-title fw-bold text-dark">${p.nombre}</h5>
-                            <p class="card-text text-muted small flex-grow-1">${p.descripcion || ''}</p>
+                            <p class="card-text text-muted small flex-grow-1 descripcion-corta">${p.descripcion || ''}</p>
                             <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
                                 <span class="fs-5 fw-bold text-primary">Q${parseFloat(p.precio).toFixed(2)}</span>
-                                <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="agregarAlCarrito(${p.id})">
-                                    <i class="fa-solid fa-cart-plus me-1"></i> Agregar
-                                </button>
+                                <a href="/producto.html?id=${p.id}" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="event.stopPropagation()">
+                                    <i class="fa-solid fa-eye me-1"></i> Ver detalles
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
             `).join('');
-        }
-
-        function agregarAlCarrito(idProducto) {
-            if (!usuarioActual) {
-                const modal = new bootstrap.Modal(document.getElementById('modalAuth'));
-                modal.show();
-                return;
-            }
-            const prod = productosGlobal.find(p => Number(p.id) === Number(idProducto));
-            if (!prod) return;
-            const existe = carrito.find(item => Number(item.id) === Number(idProducto));
-            if (existe) {
-                existe.cantidad++;
-            } else {
-                carrito.push({ id: prod.id, nombre: prod.nombre, precio: parseFloat(prod.precio), cantidad: 1 });
-            }
-            guardarYRenderizarCarrito();
         }
 
         function cambiarCantidad(index, delta) {
