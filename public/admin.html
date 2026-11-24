@@ -34,6 +34,16 @@
             border-radius: 16px;
             overflow: hidden;
         }
+        .card-pedido-item {
+            border: 1px solid #dbe7f5;
+            border-radius: 16px;
+            background: #ffffff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-pedido-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 22px rgba(0, 102, 204, 0.12);
+        }
         .img-thumb {
             width: 56px;
             height: 56px;
@@ -226,34 +236,19 @@
             </div>
         </div>
 
-        <!-- 5. Apartado de Pedidos -->
-        <div class="card card-panel shadow-sm mt-4" id="seccion-pedidos-admin">
-            <div class="card-header bg-primary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                <span><i class="fa-solid fa-clipboard-check me-2"></i>Pedidos de Clientes</span>
-                <button class="btn btn-light btn-sm fw-bold" onclick="cargarPedidosAdmin()">
+        <!-- 5. Todos los Pedidos (Una tarjeta por cada pedido) -->
+        <div class="mt-4" id="seccion-pedidos-admin">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold text-dark mb-0">
+                    <i class="fa-solid fa-clipboard-check text-primary me-2"></i>Todos los Pedidos
+                </h4>
+                <button class="btn btn-primary btn-sm fw-bold rounded-pill px-3" onclick="cargarPedidosAdmin()">
                     <i class="fa-solid fa-rotate-right me-1"></i> Actualizar Pedidos
                 </button>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th># Pedido</th>
-                                <th>Cliente</th>
-                                <th>Detalle</th>
-                                <th>Total</th>
-                                <th>Estado</th>
-                                <th class="text-end">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-pedidos-admin">
-                            <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">Cargando pedidos...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+
+            <div class="row g-3" id="grid-pedidos-admin">
+                <div class="col-12 text-center py-4 text-muted">Cargando pedidos...</div>
             </div>
         </div>
 
@@ -349,69 +344,98 @@
         }
 
         async function cargarPedidosAdmin() {
-            const tbody = document.getElementById('tabla-pedidos-admin');
+            const grid = document.getElementById('grid-pedidos-admin');
             try {
                 pedidosAdmin = await leerListaApi('/api/pedidos', 'pedidos');
                 renderizarPedidosAdmin();
             } catch (err) {
                 console.error('Error cargando pedidos:', err);
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">No se pudieron cargar los pedidos.</td></tr>`;
+                grid.innerHTML = `<div class="col-12"><div class="alert alert-danger rounded-4">No se pudieron cargar los pedidos.</div></div>`;
             }
         }
 
-        async function marcarPedidoEntregado(idPedido) {
+        async function completarPedido(idPedido, btnEl) {
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Completando...';
+            }
+
             try {
                 const res = await fetch(`/api/pedidos/${idPedido}/estado`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ estado: 'entregado' })
+                    body: JSON.stringify({ estado: 'completado' })
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                    alert(data.error || 'No se pudo actualizar el estado del pedido.');
+                    alert(data.error || 'No se pudo marcar el pedido como completado.');
+                    if (btnEl) {
+                        btnEl.disabled = false;
+                        btnEl.innerHTML = '<i class="fa-solid fa-check me-1"></i>Completar';
+                    }
                     return;
                 }
                 await cargarPedidosAdmin();
             } catch (err) {
-                console.error('Error marcando entregado:', err);
-                alert('Error de conexión al marcar como entregado.');
+                console.error('Error completando pedido:', err);
+                alert('Error de conexión al completar el pedido.');
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.innerHTML = '<i class="fa-solid fa-check me-1"></i>Completar';
+                }
             }
         }
 
         function renderizarPedidosAdmin() {
-            const tbody = document.getElementById('tabla-pedidos-admin');
+            const grid = document.getElementById('grid-pedidos-admin');
             if (!pedidosAdmin.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No hay pedidos registrados aún.</td></tr>`;
+                grid.innerHTML = `<div class="col-12"><div class="card card-pedido-item p-4 text-center text-muted">No hay pedidos registrados aún.</div></div>`;
                 return;
             }
 
-            tbody.innerHTML = pedidosAdmin.map(p => {
-                const esEntregado = (p.estado || 'pendiente').toLowerCase() === 'entregado';
+            grid.innerHTML = pedidosAdmin.map(p => {
+                const estadoActual = (p.estado || 'pendiente').toLowerCase();
+                const esCompletado = estadoActual === 'completado' || estadoActual === 'entregado';
                 const nombreCliente = p.cliente?.nombre || `Usuario #${p.usuario_id || '—'}`;
-                const telCliente = p.cliente?.telefono ? `<br><small class="text-muted"><i class="fa-brands fa-whatsapp text-success me-1"></i>${p.cliente.telefono}</small>` : '';
+                const telCliente = p.cliente?.telefono
+                    ? `<small class="text-muted d-block"><i class="fa-brands fa-whatsapp text-success me-1"></i>${p.cliente.telefono}</small>`
+                    : '';
+                const fecha = p.created_at ? new Date(p.created_at).toLocaleString('es-GT') : '';
 
                 return `
-                    <tr>
-                        <td class="fw-bold">#${p.id}</td>
-                        <td>
-                            <strong>${nombreCliente}</strong>
-                            ${telCliente}
-                        </td>
-                        <td style="max-width: 320px; white-space: pre-line;" class="small">${p.detalle || ''}</td>
-                        <td class="fw-bold text-primary">Q${parseFloat(p.total || 0).toFixed(2)}</td>
-                        <td>
-                            ${esEntregado
-                                ? `<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Entregado</span>`
-                                : `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>`}
-                        </td>
-                        <td class="text-end text-nowrap">
-                            ${esEntregado
-                                ? `<span class="text-muted small">Completado</span>`
-                                : `<button class="btn btn-success btn-sm fw-bold" onclick="marcarPedidoEntregado(${p.id})">
-                                        <i class="fa-solid fa-box-check me-1"></i>Pedido Entregado
-                                   </button>`}
-                        </td>
-                    </tr>
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <div class="card card-pedido-item h-100 shadow-sm p-3 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="fw-bold fs-6 text-dark">Pedido #${p.id}</span>
+                                        ${fecha ? `<small class="text-muted d-block">${fecha}</small>` : ''}
+                                    </div>
+                                    ${esCompletado
+                                        ? `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Completado</span>`
+                                        : `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>`}
+                                </div>
+
+                                <div class="mb-2">
+                                    <strong class="text-dark">${nombreCliente}</strong>
+                                    ${telCliente}
+                                </div>
+
+                                <div class="bg-light p-2 rounded-3 small mb-3" style="white-space: pre-line;">${p.detalle || ''}</div>
+                            </div>
+
+                            <div class="border-top pt-2 d-flex justify-content-between align-items-center gap-2">
+                                <span class="fw-bold text-primary fs-6">Q${parseFloat(p.total || 0).toFixed(2)}</span>
+                                ${esCompletado
+                                    ? `<span class="badge bg-light text-success border border-success px-3 py-2">
+                                            <i class="fa-solid fa-check-double me-1"></i>Completado
+                                       </span>`
+                                    : `<button class="btn btn-success btn-sm fw-bold px-3" onclick="completarPedido(${p.id}, this)">
+                                            <i class="fa-solid fa-check me-1"></i>Completar
+                                       </button>`}
+                            </div>
+                        </div>
+                    </div>
                 `;
             }).join('');
         }
