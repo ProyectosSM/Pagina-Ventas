@@ -59,6 +59,9 @@
                 <span>Panel de Administración - AUTOTECH GT</span>
             </a>
             <div class="d-flex gap-2">
+                <a href="#seccion-pedidos-admin" class="btn btn-info text-dark btn-sm fw-bold rounded-pill px-3">
+                    <i class="fa-solid fa-clipboard-list me-1"></i> Pedidos
+                </a>
                 <a href="/index.html" class="btn btn-light btn-sm fw-bold rounded-pill px-3">
                     <i class="fa-solid fa-store me-1"></i> Ver Tienda
                 </a>
@@ -222,6 +225,38 @@
 
             </div>
         </div>
+
+        <!-- 5. Apartado de Pedidos -->
+        <div class="card card-panel shadow-sm mt-4" id="seccion-pedidos-admin">
+            <div class="card-header bg-primary text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-clipboard-check me-2"></i>Pedidos de Clientes</span>
+                <button class="btn btn-light btn-sm fw-bold" onclick="cargarPedidosAdmin()">
+                    <i class="fa-solid fa-rotate-right me-1"></i> Actualizar Pedidos
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th># Pedido</th>
+                                <th>Cliente</th>
+                                <th>Detalle</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-pedidos-admin">
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">Cargando pedidos...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -229,6 +264,7 @@
         let categoriasAdmin = [];
         let subcategoriasAdmin = [];
         let productosAdmin = [];
+        let pedidosAdmin = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             const usuario = JSON.parse(localStorage.getItem('usuario_abu') || 'null');
@@ -308,6 +344,76 @@
                 document.getElementById('tabla-productos-admin').innerHTML =
                     `<tr><td colspan="5" class="text-center py-4 text-danger">Error al cargar productos.</td></tr>`;
             }
+
+            await cargarPedidosAdmin();
+        }
+
+        async function cargarPedidosAdmin() {
+            const tbody = document.getElementById('tabla-pedidos-admin');
+            try {
+                pedidosAdmin = await leerListaApi('/api/pedidos', 'pedidos');
+                renderizarPedidosAdmin();
+            } catch (err) {
+                console.error('Error cargando pedidos:', err);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">No se pudieron cargar los pedidos.</td></tr>`;
+            }
+        }
+
+        async function marcarPedidoEntregado(idPedido) {
+            try {
+                const res = await fetch(`/api/pedidos/${idPedido}/estado`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado: 'entregado' })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    alert(data.error || 'No se pudo actualizar el estado del pedido.');
+                    return;
+                }
+                await cargarPedidosAdmin();
+            } catch (err) {
+                console.error('Error marcando entregado:', err);
+                alert('Error de conexión al marcar como entregado.');
+            }
+        }
+
+        function renderizarPedidosAdmin() {
+            const tbody = document.getElementById('tabla-pedidos-admin');
+            if (!pedidosAdmin.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No hay pedidos registrados aún.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = pedidosAdmin.map(p => {
+                const esEntregado = (p.estado || 'pendiente').toLowerCase() === 'entregado';
+                const nombreCliente = p.cliente?.nombre || `Usuario #${p.usuario_id || '—'}`;
+                const telCliente = p.cliente?.telefono ? `<br><small class="text-muted"><i class="fa-brands fa-whatsapp text-success me-1"></i>${p.cliente.telefono}</small>` : '';
+
+                return `
+                    <tr>
+                        <td class="fw-bold">#${p.id}</td>
+                        <td>
+                            <strong>${nombreCliente}</strong>
+                            ${telCliente}
+                        </td>
+                        <td style="max-width: 320px; white-space: pre-line;" class="small">${p.detalle || ''}</td>
+                        <td class="fw-bold text-primary">Q${parseFloat(p.total || 0).toFixed(2)}</td>
+                        <td>
+                            ${esEntregado
+                                ? `<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Entregado</span>`
+                                : `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>`}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            ${esEntregado
+                                ? `<span class="text-muted small">Completado</span>`
+                                : `<button class="btn btn-success btn-sm fw-bold" onclick="marcarPedidoEntregado(${p.id})">
+                                        <i class="fa-solid fa-box-check me-1"></i>Pedido Entregado
+                                   </button>`}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function renderizarSelects() {
