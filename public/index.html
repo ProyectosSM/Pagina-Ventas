@@ -162,6 +162,23 @@
         </div>
     </section>
 
+    <!-- Buscador -->
+    <div class="container mb-3">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="input-group shadow-sm rounded-pill overflow-hidden bg-white">
+                    <span class="input-group-text bg-white border-0 ps-3 text-primary">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" id="buscador-productos" class="form-control border-0 py-2" placeholder="Buscar producto por nombre o descripción..." oninput="aplicarFiltros()">
+                    <button class="btn btn-outline-secondary border-0 px-3" type="button" onclick="limpiarBuscador()" title="Limpiar búsqueda">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 1. Categorías Arriba -->
     <div class="container mb-4">
         <div class="d-flex flex-wrap justify-content-center gap-2" id="lista-categorias">
@@ -324,6 +341,14 @@
             await Promise.all([cargarCategorias(), cargarSubcategorias(), cargarProductos()]);
             renderizarCarrito();
         });
+
+        function limpiarBuscador() {
+            const input = document.getElementById('buscador-productos');
+            if (input) {
+                input.value = '';
+                aplicarFiltros();
+            }
+        }
 
         function obtenerSubcategoriaIdProducto(p) {
             if (p.subcategoria_id !== null && p.subcategoria_id !== undefined && String(p.subcategoria_id) !== '') {
@@ -618,12 +643,19 @@
         function aplicarFiltros() {
             let filtrados = [...productosGlobal];
             const tituloProd = document.getElementById('titulo-seccion-productos');
+            const textoBuscador = (document.getElementById('buscador-productos')?.value || '').trim().toLowerCase();
 
             if (categoriaActiva !== 'todas') {
                 filtrados = filtrados.filter(p => obtenerCategoriaIdProducto(p) === Number(categoriaActiva));
             }
             if (subcategoriaActiva !== 'todas') {
                 filtrados = filtrados.filter(p => obtenerSubcategoriaIdProducto(p) === Number(subcategoriaActiva));
+            }
+            if (textoBuscador) {
+                filtrados = filtrados.filter(p =>
+                    (p.nombre || '').toLowerCase().includes(textoBuscador) ||
+                    (p.descripcion || '').toLowerCase().includes(textoBuscador)
+                );
             }
 
             if (subcategoriaActiva !== 'todas') {
