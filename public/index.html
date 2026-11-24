@@ -237,7 +237,12 @@
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header bg-primary text-white rounded-top-4">
                     <h5 class="modal-title"><i class="fa-solid fa-clock-rotate-left me-2"></i>Mis Pedidos</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-light btn-sm fw-bold" onclick="cargarMisPedidos()">
+                            <i class="fa-solid fa-rotate-right me-1"></i>Actualizar
+                        </button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body p-4" id="lista-mis-pedidos">
                     <div class="text-center py-4 text-muted">Cargando tus pedidos...</div>
@@ -353,8 +358,9 @@
         }
 
         function badgeEstadoPedido(estado) {
-            if ((estado || '').toLowerCase() === 'entregado') {
-                return `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Entregado</span>`;
+            const est = (estado || 'pendiente').toString().trim().toLowerCase();
+            if (est === 'completado' || est === 'entregado' || est === 'completada') {
+                return `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Completado</span>`;
             }
             return `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>`;
         }
@@ -368,12 +374,18 @@
 
             const modalEl = document.getElementById('modalMisPedidos');
             const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+            await cargarMisPedidos();
+        }
+
+        async function cargarMisPedidos() {
+            if (!usuarioActual) return;
             const cont = document.getElementById('lista-mis-pedidos');
             cont.innerHTML = `<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i></div>`;
-            modal.show();
 
             try {
-                const res = await fetch(`/api/pedidos?usuario_id=${encodeURIComponent(usuarioActual.id)}`);
+                const url = `/api/pedidos?usuario_id=${encodeURIComponent(usuarioActual.id)}&_t=${Date.now()}`;
+                const res = await fetch(url, { cache: 'no-store' });
                 const data = await res.json().catch(() => []);
                 const lista = Array.isArray(data) ? data : [];
 
