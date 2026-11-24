@@ -40,8 +40,6 @@ app.get('/api/pedidos', async (req, res) => {
     }
 
     const listaPedidos = Array.isArray(pedidosData) ? pedidosData : [];
-
-    // Intentar adjuntar datos básicos del cliente si existe tabla usuarios
     const userIds = [...new Set(listaPedidos.map(p => p.usuario_id).filter(Boolean))];
     let usuariosMap = {};
 
@@ -105,11 +103,7 @@ app.post('/api/pedidos', async (req, res) => {
 app.patch('/api/pedidos/:id/estado', async (req, res) => {
   try {
     const { id } = req.params;
-    const estado = (req.body?.estado || 'entregado').trim().toLowerCase();
-
-    if (!['pendiente', 'entregado'].includes(estado)) {
-      return res.status(400).json({ error: 'Estado no válido.' });
-    }
+    const estado = (req.body?.estado || 'completado').trim().toLowerCase();
 
     const { data, error } = await supabase
       .from('pedidos')
