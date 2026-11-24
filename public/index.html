@@ -146,7 +146,7 @@
                 <img src="/logo-autotech.png" alt="Logo AUTOTECH GT" class="logo-navbar me-2">
                 <span>AUTO TECH</span>
             </a>
-            <div class="d-flex align-items-center gap-2" id="nav-auth-area"></div>
+            <div class="d-flex flex-wrap align-items-center gap-2" id="nav-auth-area"></div>
         </div>
     </nav>
 
@@ -157,7 +157,7 @@
             </h1>
             <p class="lead mb-3">Explora cada producto, revisa sus detalles y arma tu pedido directo a nuestro WhatsApp.</p>
             <div class="d-inline-block bg-white text-primary px-4 py-2 rounded-pill fw-bold shadow-sm">
-                <i class="fa-brands fa-whatsapp fa-shake text-success me-2"></i>Pedidos y Comprobantes por Whatsapp
+                <i class="fa-brands fa-whatsapp fa-shake text-success me-2"></i>Pedidos y Comprobantes: 4171-4540
             </div>
         </div>
     </section>
@@ -227,6 +227,21 @@
                 <button id="btn-enviar-whatsapp" class="btn btn-success btn-lg w-100 fw-bold shadow" onclick="procesarPedidoWhatsApp()">
                     <i class="fa-brands fa-whatsapp fa-beat me-2"></i>Pedir y Enviar Comprobante
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mis Pedidos -->
+    <div class="modal fade" id="modalMisPedidos" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-primary text-white rounded-top-4">
+                    <h5 class="modal-title"><i class="fa-solid fa-clock-rotate-left me-2"></i>Mis Pedidos</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4" id="lista-mis-pedidos">
+                    <div class="text-center py-4 text-muted">Cargando tus pedidos...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -337,6 +352,67 @@
             window.location.href = `/producto.html?id=${encodeURIComponent(idProducto)}`;
         }
 
+        function badgeEstadoPedido(estado) {
+            if ((estado || '').toLowerCase() === 'entregado') {
+                return `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i>Entregado</span>`;
+            }
+            return `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>`;
+        }
+
+        async function abrirMisPedidos() {
+            if (!usuarioActual) {
+                const modalAuth = new bootstrap.Modal(document.getElementById('modalAuth'));
+                modalAuth.show();
+                return;
+            }
+
+            const modalEl = document.getElementById('modalMisPedidos');
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            const cont = document.getElementById('lista-mis-pedidos');
+            cont.innerHTML = `<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i></div>`;
+            modal.show();
+
+            try {
+                const res = await fetch(`/api/pedidos?usuario_id=${encodeURIComponent(usuarioActual.id)}`);
+                const data = await res.json().catch(() => []);
+                const lista = Array.isArray(data) ? data : [];
+
+                if (!res.ok) {
+                    cont.innerHTML = `<div class="alert alert-danger">No se pudieron cargar tus pedidos.</div>`;
+                    return;
+                }
+
+                if (!lista.length) {
+                    cont.innerHTML = `<div class="text-center py-4 text-muted">Aún no has realizado ningún pedido.</div>`;
+                    return;
+                }
+
+                cont.innerHTML = lista.map(ped => {
+                    const fecha = ped.created_at ? new Date(ped.created_at).toLocaleString('es-GT') : '';
+                    return `
+                        <div class="card border shadow-sm rounded-4 mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>Pedido #${ped.id}</strong>
+                                        ${fecha ? `<small class="text-muted ms-2">${fecha}</small>` : ''}
+                                    </div>
+                                    ${badgeEstadoPedido(ped.estado)}
+                                </div>
+                                <pre class="bg-light p-3 rounded-3 mb-2 small" style="white-space: pre-wrap; font-family: inherit;">${ped.detalle || ''}</pre>
+                                <div class="text-end fw-bold text-primary fs-6">
+                                    Total: Q${parseFloat(ped.total || 0).toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error cargando mis pedidos:', err);
+                cont.innerHTML = `<div class="alert alert-danger">Error de conexión al cargar tus pedidos.</div>`;
+            }
+        }
+
         function actualizarUIUsuario() {
             const navArea = document.getElementById('nav-auth-area');
             const alertaLogin = document.getElementById('alerta-login-pedido');
@@ -348,6 +424,9 @@
                     : '';
                 navArea.innerHTML = `
                     ${btnAdmin}
+                    <button class="btn btn-info text-dark btn-sm fw-bold" onclick="abrirMisPedidos()">
+                        <i class="fa-solid fa-bag-shopping me-1"></i>Mis Pedidos
+                    </button>
                     <span class="text-white small d-none d-md-inline"><i class="fa-solid fa-circle-user me-1"></i>Hola, ${usuarioActual.nombre}</span>
                     <button class="btn btn-outline-light btn-sm" onclick="cerrarSesion()"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
                 `;
@@ -642,29 +721,40 @@
 
             const detalleTexto = lineasDetalle.join('\n');
 
-            await fetch('/api/pedidos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    usuario_id: usuarioActual.id,
-                    detalle: detalleTexto,
-                    total: total
-                })
-            });
+            try {
+                const res = await fetch('/api/pedidos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuario_id: usuarioActual.id,
+                        detalle: detalleTexto,
+                        total: total
+                    })
+                });
 
-            const mensaje = `¡Hola *AUTOTECH GT*! 👋 Quisiera confirmar el siguiente pedido:\n\n` +
-                            `👤 *Cliente:* ${usuarioActual.nombre}\n` +
-                            `📱 *Teléfono:* ${usuarioActual.telefono}\n\n` +
-                            `🛒 *Detalle del Pedido:*\n${detalleTexto}\n\n` +
-                            `💰 *TOTAL A PAGAR: Q${total.toFixed(2)}*\n\n` +
-                            `📎 _Adjunto por este medio mi comprobante de pago/transferencia._`;
+                const dataPedido = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    alert(dataPedido.error || 'No se pudo guardar el pedido en la base de datos.');
+                    return;
+                }
 
-            const urlWhatsApp = `https://wa.me/50236090231?text=${encodeURIComponent(mensaje)}`;
-            carrito = [];
-            guardarYRenderizarCarrito();
-            window.open(urlWhatsApp, '_blank');
+                const codigoPedido = dataPedido?.id ? ` #${dataPedido.id}` : '';
+                const mensaje = `¡Hola *AUTOTECH GT*! 👋 Quisiera confirmar el siguiente pedido${codigoPedido} (Estado: *Pendiente*):\n\n` +
+                                `👤 *Cliente:* ${usuarioActual.nombre}\n` +
+                                `📱 *Teléfono:* ${usuarioActual.telefono}\n\n` +
+                                `🛒 *Detalle del Pedido:*\n${detalleTexto}\n\n` +
+                                `💰 *TOTAL A PAGAR: Q${total.toFixed(2)}*\n\n` +
+                                `📎 _Adjunto por este medio mi comprobante de pago/transferencia._`;
+
+                const urlWhatsApp = `https://wa.me/50241714540?text=${encodeURIComponent(mensaje)}`;
+                carrito = [];
+                guardarYRenderizarCarrito();
+                window.open(urlWhatsApp, '_blank');
+            } catch (err) {
+                console.error('Error al procesar pedido:', err);
+                alert('Error de conexión al guardar tu pedido.');
+            }
         }
     </script>
 </body>
 </html>
-
