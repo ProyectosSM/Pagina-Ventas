@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del Producto | AUTOTECH GT</title>
+    <link rel="icon" type="image/png" href="/logo-autotech.png">
+    <link rel="shortcut icon" type="image/png" href="/logo-autotech.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --azul-oscuro: #0a2540;
+            --azul-primario: #0066cc;
+            --azul-brillante: #00a8ff;
+            --celeste-fondo: #f0f6fc;
+        }
+        body {
+            background-color: var(--celeste-fondo);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-abu {
+            background: linear-gradient(135deg, var(--azul-oscuro) 0%, var(--azul-primario) 100%);
+            box-shadow: 0 4px 15px rgba(0, 102, 204, 0.25);
+        }
+        .logo-navbar {
+            height: 44px;
+            width: auto;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 2px 6px;
+            box-shadow: 0 2px 10px rgba(0, 168, 255, 0.35);
+            animation: flotarLogo 2.8s ease-in-out infinite;
+        }
+        @keyframes flotarLogo {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+        .card-detalle {
+            border: none;
+            border-radius: 22px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .img-detalle-box {
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 360px;
+            padding: 1.5rem;
+        }
+        .img-detalle {
+            max-height: 430px;
+            width: 100%;
+            object-fit: contain;
+            border-radius: 14px;
+        }
+        .descripcion-completa {
+            white-space: pre-line;
+            line-height: 1.7;
+            color: #475569;
+        }
+        .card-relacionado {
+            border: none;
+            border-radius: 15px;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            overflow: hidden;
+            background: #fff;
+            cursor: pointer;
+        }
+        .card-relacionado:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 22px rgba(0, 102, 204, 0.16);
+        }
+        .card-relacionado img {
+            height: 170px;
+            object-fit: cover;
+            background: #e9ecef;
+        }
+        .fab-carrito {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: linear-gradient(45deg, #0066cc, #00a8ff);
+            color: white;
+            border-radius: 50px;
+            padding: 15px 25px;
+            font-size: 1.1rem;
+            box-shadow: 0 8px 20px rgba(0, 102, 204, 0.4);
+            z-index: 1000;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-abu sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-4 d-flex align-items-center" href="/index.html">
+                <img src="/logo-autotech.png" alt="Logo AUTOTECH GT" class="logo-navbar me-2">
+                <span>AUTO TECH</span>
+            </a>
+            <div class="d-flex align-items-center gap-2" id="nav-auth-area"></div>
+        </div>
+    </nav>
+
+    <div class="container py-4 pb-5">
+        <!-- Botón Volver -->
+        <div class="mb-3">
+            <a href="/index.html" class="btn btn-outline-primary rounded-pill px-3 fw-semibold">
+                <i class="fa-solid fa-arrow-left me-1"></i> Volver al Catálogo
+            </a>
+        </div>
+
+        <!-- Contenedor Principal del Producto -->
+        <div id="contenedor-detalle">
+            <div class="text-center py-5">
+                <i class="fa-solid fa-spinner fa-spin fa-3x text-primary"></i>
+                <p class="mt-2 text-muted">Cargando detalles del producto...</p>
+            </div>
+        </div>
+
+        <!-- Productos Relacionados -->
+        <div class="mt-5 d-none" id="seccion-relacionados">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="fa-solid fa-layer-group text-primary me-2"></i>También te puede interesar
+            </h5>
+            <div class="row g-4" id="grid-relacionados"></div>
+        </div>
+    </div>
+
+    <!-- Botón Flotante Carrito -->
+    <button class="fab-carrito" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCarrito">
+        <i class="fa-solid fa-cart-shopping fa-bounce me-2"></i>
+        Mi Pedido (<span id="contador-carrito">0</span>)
+    </button>
+
+    <!-- Offcanvas Carrito -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCarrito">
+        <div class="offcanvas-header bg-primary text-white">
+            <h5 class="offcanvas-title"><i class="fa-solid fa-basket-shopping me-2"></i>Resumen de tu Pedido</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body d-flex flex-column">
+            <div id="items-carrito" class="flex-grow-1 overflow-auto"></div>
+            <div class="border-top pt-3 mt-3">
+                <div class="d-flex justify-content-between fs-5 fw-bold text-primary mb-3">
+                    <span>Total a Pagar:</span>
+                    <span>Q<span id="total-carrito">0.00</span></span>
+                </div>
+                <div id="alerta-login-pedido" class="alert alert-warning text-center d-none">
+                    <i class="fa-solid fa-lock fa-shake me-1"></i>
+                    <strong>¡Inicia sesión para pedir!</strong><br>
+                    <small>Debes ingresar a tu cuenta para enviar tu orden por WhatsApp.</small>
+                    <button class="btn btn-primary btn-sm w-100 mt-2" data-bs-toggle="modal" data-bs-target="#modalAuth">
+                        Iniciar Sesión / Registrarme
+                    </button>
+                </div>
+                <button id="btn-enviar-whatsapp" class="btn btn-success btn-lg w-100 fw-bold shadow" onclick="procesarPedidoWhatsApp()">
+                    <i class="fa-brands fa-whatsapp fa-beat me-2"></i>Pedir y Enviar Comprobante
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Login / Registro -->
+    <div class="modal fade" id="modalAuth" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-primary text-white rounded-top-4">
+                    <h5 class="modal-title"><i class="fa-solid fa-user-shield me-2"></i>Acceso de Clientes</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-login">Iniciar Sesión</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-registro">Crear Cuenta</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tab-login">
+                            <form onsubmit="iniciarSesion(event)">
+                                <div class="mb-3">
+                                    <label class="form-label">Correo Electrónico</label>
+                                    <input type="email" id="login-email" class="form-control" required placeholder="cliente@correo.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contraseña</label>
+                                    <input type="password" id="login-pass" class="form-control" required placeholder="••••••••">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-bold">Entrar</button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="tab-registro">
+                            <form onsubmit="registrarUsuario(event)">
+                                <div class="mb-2">
+                                    <label class="form-label">Nombre Completo</label>
+                                    <input type="text" id="reg-nombre" class="form-control" required placeholder="Juan Pérez">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Teléfono / WhatsApp</label>
+                                    <input type="tel" id="reg-telefono" class="form-control" required placeholder="5555-5555">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Correo Electrónico</label>
+                                    <input type="email" id="reg-email" class="form-control" required placeholder="juan@correo.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contraseña</label>
+                                    <input type="password" id="reg-pass" class="form-control" required placeholder="Crea una contraseña">
+                                </div>
+                                <button type="submit" class="btn btn-info text-white w-100 fw-bold">Registrarme</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let productoActual = null;
+        let cantidadSeleccionada = 1;
+        let carrito = JSON.parse(localStorage.getItem('carrito_abu')) || [];
+        let usuarioActual = JSON.parse(localStorage.getItem('usuario_abu')) || null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            actualizarUIUsuario();
+            renderizarCarrito();
+            await cargarDetalleProducto();
+        });
+
+        async function cargarDetalleProducto() {
+            const params = new URLSearchParams(window.location.search);
+            const idParam = params.get('id');
+            const contenedor = document.getElementById('contenedor-detalle');
+
+            if (!idParam) {
+                contenedor.innerHTML = `
+                    <div class="alert alert-warning rounded-4 text-center p-4">
+                        <h5>No se especificó ningún producto.</h5>
+                        <a href="/index.html" class="btn btn-primary mt-2">Ir al catálogo</a>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/productos');
+                const data = await res.json().catch(() => []);
+                const lista = Array.isArray(data) ? data : [];
+                productoActual = lista.find(p => Number(p.id) === Number(idParam));
+
+                if (!productoActual) {
+                    contenedor.innerHTML = `
+                        <div class="alert alert-danger rounded-4 text-center p-4">
+                            <h5>El producto solicitado no existe o fue eliminado.</h5>
+                            <a href="/index.html" class="btn btn-primary mt-2">Volver al catálogo</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                document.title = `${productoActual.nombre} | AUTOTECH GT`;
+
+                contenedor.innerHTML = `
+                    <div class="card card-detalle shadow-sm">
+                        <div class="row g-0">
+                            <div class="col-lg-6 img-detalle-box">
+                                <img src="${productoActual.imagen_url || 'https://via.placeholder.com/500x400?text=Sin+Imagen'}"
+                                     alt="${productoActual.nombre}" class="img-detalle">
+                            </div>
+                            <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <span class="badge bg-primary fs-6">
+                                            <i class="fa-solid ${productoActual.categorias?.icono || 'fa-tag'} me-1"></i>
+                                            ${productoActual.categorias?.nombre || 'General'}
+                                        </span>
+                                        ${productoActual.subcategorias?.nombre
+                                            ? `<span class="badge bg-info text-dark fs-6">${productoActual.subcategorias.nombre}</span>`
+                                            : ''}
+                                    </div>
+
+                                    <h1 class="fw-bold text-dark mb-3">${productoActual.nombre}</h1>
+
+                                    <div class="fs-2 fw-bold text-primary mb-4">
+                                        Q${parseFloat(productoActual.precio).toFixed(2)}
+                                    </div>
+
+                                    <h6 class="fw-bold text-uppercase text-muted small mb-2">Descripción del Producto</h6>
+                                    <p class="descripcion-completa mb-4">
+                                        ${productoActual.descripcion || 'Sin descripción adicional disponible.'}
+                                    </p>
+                                </div>
+
+                                <div class="border-top pt-4">
+                                    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                                        <span class="fw-semibold text-dark">Cantidad:</span>
+                                        <div class="input-group" style="width: 140px;">
+                                            <button class="btn btn-outline-secondary fw-bold" type="button" onclick="cambiarCantidadDetalle(-1)">-</button>
+                                            <input type="text" id="input-cantidad-detalle" class="form-control text-center fw-bold" value="1" readonly>
+                                            <button class="btn btn-outline-primary fw-bold" type="button" onclick="cambiarCantidadDetalle(1)">+</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2 d-sm-flex">
+                                        <button class="btn btn-primary btn-lg rounded-pill px-4 fw-bold flex-grow-1 shadow-sm" onclick="agregarDetalleAlCarrito()">
+                                            <i class="fa-solid fa-cart-plus me-2"></i>Agregar al Carrito
+                                        </button>
+                                        <button class="btn btn-outline-success btn-lg rounded-pill px-4 fw-bold" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCarrito">
+                                            <i class="fa-solid fa-basket-shopping me-1"></i> Ver Pedido
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                renderizarRelacionados(lista, productoActual);
+            } catch (err) {
+                console.error('Error al cargar detalle:', err);
+                contenedor.innerHTML = `<div class="alert alert-danger rounded-4">Error al cargar los detalles del producto.</div>`;
+            }
+        }
+
+        function renderizarRelacionados(lista, actual) {
+            const relacionados = lista
+                .filter(p => Number(p.id) !== Number(actual.id) && Number(p.categoria_id) === Number(actual.categoria_id))
+                .slice(0, 4);
+
+            if (!relacionados.length) return;
+
+            const seccion = document.getElementById('seccion-relacionados');
+            const grid = document.getElementById('grid-relacionados');
+            seccion.classList.remove('d-none');
+
+            grid.innerHTML = relacionados.map(p => `
+                <div class="col-6 col-md-3">
+                    <div class="card card-relacionado h-100 shadow-sm" onclick="window.location.href='/producto.html?id=${p.id}'">
+                        <img src="${p.imagen_url || 'https://via.placeholder.com/300x200?text=Sin+Imagen'}" alt="${p.nombre}">
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="fw-bold text-dark mb-1">${p.nombre}</h6>
+                            <span class="fw-bold text-primary mt-auto">Q${parseFloat(p.precio).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function cambiarCantidadDetalle(delta) {
+            cantidadSeleccionada = Math.max(1, cantidadSeleccionada + delta);
+            const input = document.getElementById('input-cantidad-detalle');
+            if (input) input.value = cantidadSeleccionada;
+        }
+
+        function agregarDetalleAlCarrito() {
+            if (!productoActual) return;
+            if (!usuarioActual) {
+                const modal = new bootstrap.Modal(document.getElementById('modalAuth'));
+                modal.show();
+                return;
+            }
+
+            const existe = carrito.find(item => Number(item.id) === Number(productoActual.id));
+            if (existe) {
+                existe.cantidad += cantidadSeleccionada;
+            } else {
+                carrito.push({
+                    id: productoActual.id,
+                    nombre: productoActual.nombre,
+                    precio: parseFloat(productoActual.precio),
+                    cantidad: cantidadSeleccionada
+                });
+            }
+
+            guardarYRenderizarCarrito();
+
+            const offcanvasEl = document.getElementById('offcanvasCarrito');
+            const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl) || new bootstrap.Offcanvas(offcanvasEl);
+            offcanvas.show();
+        }
+
+        function actualizarUIUsuario() {
+            const navArea = document.getElementById('nav-auth-area');
+            const alertaLogin = document.getElementById('alerta-login-pedido');
+            const btnWhatsapp = document.getElementById('btn-enviar-whatsapp');
+
+            if (usuarioActual) {
+                let btnAdmin = usuarioActual.rol === 'admin'
+                    ? `<a href="/admin.html" class="btn btn-warning btn-sm fw-bold"><i class="fa-solid fa-gear fa-spin me-1"></i>Panel Admin</a>`
+                    : '';
+                navArea.innerHTML = `
+                    ${btnAdmin}
+                    <span class="text-white small d-none d-md-inline"><i class="fa-solid fa-circle-user me-1"></i>Hola, ${usuarioActual.nombre}</span>
+                    <button class="btn btn-outline-light btn-sm" onclick="cerrarSesion()"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
+                `;
+                alertaLogin.classList.add('d-none');
+                btnWhatsapp.classList.remove('d-none');
+            } else {
+                navArea.innerHTML = `
+                    <button class="btn btn-light text-primary fw-bold btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAuth">
+                        <i class="fa-solid fa-user-lock me-1"></i> Iniciar Sesión
+                    </button>
+                `;
+                alertaLogin.classList.remove('d-none');
+                btnWhatsapp.classList.add('d-none');
+            }
+        }
+
+        async function iniciarSesion(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-pass').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+            const textoOriginal = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Verificando...';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.usuario) {
+                    localStorage.setItem('usuario_abu', JSON.stringify(data.usuario));
+                    usuarioActual = data.usuario;
+                    actualizarUIUsuario();
+                    const modalEl = document.getElementById('modalAuth');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modalInstance.hide();
+                } else {
+                    alert(data.error || 'No se pudo iniciar sesión. Revisa tus datos.');
+                }
+            } catch (error) {
+                console.error('Error en login:', error);
+                alert('Error de conexión con el servidor (/api/login).');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = textoOriginal;
+            }
+        }
+
+        async function registrarUsuario(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('reg-nombre').value;
+            const telefono = document.getElementById('reg-telefono').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-pass').value;
+
+            const res = await fetch('/api/registro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre, telefono, email, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('usuario_abu', JSON.stringify(data.usuario));
+                usuarioActual = data.usuario;
+                actualizarUIUsuario();
+                bootstrap.Modal.getInstance(document.getElementById('modalAuth')).hide();
+                alert('¡Cuenta creada con éxito! Ya puedes realizar tu pedido.');
+            } else {
+                alert(data.error);
+            }
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('usuario_abu');
+            usuarioActual = null;
+            actualizarUIUsuario();
+        }
+
+        function cambiarCantidad(index, delta) {
+            carrito[index].cantidad += delta;
+            if (carrito[index].cantidad <= 0) carrito.splice(index, 1);
+            guardarYRenderizarCarrito();
+        }
+
+        function guardarYRenderizarCarrito() {
+            localStorage.setItem('carrito_abu', JSON.stringify(carrito));
+            renderizarCarrito();
+        }
+
+        function renderizarCarrito() {
+            const contenedor = document.getElementById('items-carrito');
+            const contador = document.getElementById('contador-carrito');
+            const totalEl = document.getElementById('total-carrito');
+
+            let totalItems = 0;
+            let totalDinero = 0;
+
+            if (carrito.length === 0) {
+                contenedor.innerHTML = `<p class="text-center text-muted mt-5"><i class="fa-solid fa-cart-arrow-down fa-2x mb-2 d-block"></i>Tu carrito está vacío</p>`;
+            } else {
+                contenedor.innerHTML = carrito.map((item, idx) => {
+                    totalItems += item.cantidad;
+                    totalDinero += item.precio * item.cantidad;
+                    return `
+                        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold">${item.nombre}</h6>
+                                <small class="text-primary">Q${item.precio.toFixed(2)} c/u</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad(${idx}, -1)">-</button>
+                                <span class="fw-bold">${item.cantidad}</span>
+                                <button class="btn btn-outline-primary btn-sm" onclick="cambiarCantidad(${idx}, 1)">+</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            contador.innerText = totalItems;
+            totalEl.innerText = totalDinero.toFixed(2);
+        }
+
+        async function procesarPedidoWhatsApp() {
+            if (!usuarioActual) {
+                alert('Debes iniciar sesión para realizar un pedido.');
+                return;
+            }
+            if (carrito.length === 0) {
+                alert('Agrega al menos un producto a tu carrito.');
+                return;
+            }
+
+            let total = 0;
+            let lineasDetalle = [];
+            carrito.forEach(item => {
+                const sub = item.precio * item.cantidad;
+                total += sub;
+                lineasDetalle.push(`• ${item.cantidad}x ${item.nombre} (Q${sub.toFixed(2)})`);
+            });
+
+            const detalleTexto = lineasDetalle.join('\n');
+
+            await fetch('/api/pedidos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    usuario_id: usuarioActual.id,
+                    detalle: detalleTexto,
+                    total: total
+                })
+            });
+
+            const mensaje = `¡Hola *AUTOTECH GT*! 👋 Quisiera confirmar el siguiente pedido:\n\n` +
+                            `👤 *Cliente:* ${usuarioActual.nombre}\n` +
+                            `📱 *Teléfono:* ${usuarioActual.telefono}\n\n` +
+                            `🛒 *Detalle del Pedido:*\n${detalleTexto}\n\n` +
+                            `💰 *TOTAL A PAGAR: Q${total.toFixed(2)}*\n\n` +
+                            `📎 _Adjunto por este medio mi comprobante de pago/transferencia._`;
+
+            const urlWhatsApp = `https://wa.me/50241714540?text=${encodeURIComponent(mensaje)}`;
+            carrito = [];
+            guardarYRenderizarCarrito();
+            window.open(urlWhatsApp, '_blank');
+        }
+    </script>
+</body>
+</html>
