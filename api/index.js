@@ -19,6 +19,117 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'admin.html'));
 });
 
+// --- PEDIDOS ---
+app.get('/api/pedidos', async (req, res) => {
+  try {
+    const { usuario_id } = req.query;
+
+    let query = supabase
+      .from('pedidos')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (usuario_id) {
+      query = query.eq('usuario_id', usuario_id);
+    }
+
+    const { data: pedidosData, error } = await query;
+    if (error) {
+      console.error('Error GET /api/pedidos:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const listaPedidos = Array.isArray(pedidosData) ? pedidosData : [];
+
+    // Intentar adjuntar datos básicos del cliente si existe tabla usuarios
+    const userIds = [...new Set(listaPedidos.map(p => p.usuario_id).filter(Boolean))];
+    let usuariosMap = {};
+
+    if (userIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('usuarios')
+        .select('id, nombre, telefono, email')
+        .in('id', userIds);
+
+      if (Array.isArray(usersData)) {
+        usersData.forEach(u => {
+          usuariosMap[String(u.id)] = u;
+        });
+      }
+    }
+
+    const enriquecidos = listaPedidos.map(p => ({
+      ...p,
+      estado: p.estado || 'pendiente',
+      cliente: usuariosMap[String(p.usuario_id)] || null
+    }));
+
+    res.json(enriquecidos);
+  } catch (err) {
+    console.error('Error inesperado GET /api/pedidos:', err);
+    res.status(500).json({ error: 'Error al obtener pedidos' });
+  }
+});
+
+app.post('/api/pedidos', async (req, res) => {
+  try {
+    const { usuario_id, detalle, total } = req.body;
+
+    if (!detalle || !String(detalle).trim()) {
+      return res.status(400).json({ error: 'El detalle del pedido es obligatorio.' });
+    }
+
+    const { data, error } = await supabase
+      .from('pedidos')
+      .insert([{
+        usuario_id: usuario_id ? (Number.isNaN(Number(usuario_id)) ? usuario_id : Number(usuario_id)) : null,
+        detalle: String(detalle).trim(),
+        total: Number(total) || 0,
+        estado: 'pendiente'
+      }])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error POST /api/pedidos:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('Error inesperado POST /api/pedidos:', err);
+    res.status(500).json({ error: 'Error al guardar el pedido' });
+  }
+});
+
+app.patch('/api/pedidos/:id/estado', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const estado = (req.body?.estado || 'entregado').trim().toLowerCase();
+
+    if (!['pendiente', 'entregado'].includes(estado)) {
+      return res.status(400).json({ error: 'Estado no válido.' });
+    }
+
+    const { data, error } = await supabase
+      .from('pedidos')
+      .update({ estado })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error PATCH /api/pedidos/:id/estado:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Error inesperado PATCH /api/pedidos/:id/estado:', err);
+    res.status(500).json({ error: 'Error al actualizar el estado del pedido' });
+  }
+});
+
 // --- RUTAS DE AUTENTICACIÓN ---
 
 // Registro de clientes
