@@ -170,7 +170,7 @@
                     <span class="input-group-text bg-white border-0 ps-3 text-primary">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </span>
-                    <input type="text" id="buscador-productos" class="form-control border-0 py-2" placeholder="Buscar producto por nombre o descripción..." oninput="aplicarFiltros()">
+                    <input type="text" id="buscador-productos" class="form-control border-0 py-2" placeholder="Buscar producto por nombre o descripción..." oninput="aplicarFiltros(1)">
                     <button class="btn btn-outline-secondary border-0 px-3" type="button" onclick="limpiarBuscador()" title="Limpiar búsqueda">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
@@ -212,6 +212,7 @@
                 <p class="mt-2 text-muted">Cargando catálogo...</p>
             </div>
         </div>
+        <nav class="mt-4 d-flex justify-content-center" id="paginacion-productos" aria-label="Paginación de productos"></nav>
     </div>
 
     <!-- Botón Flotante Carrito -->
@@ -328,11 +329,14 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const PRODUCTOS_POR_PAGINA = 15;
         let productosGlobal = [];
+        let productosFiltradosActuales = [];
         let categoriasGlobal = [];
         let subcategoriasGlobal = [];
         let categoriaActiva = 'todas';
         let subcategoriaActiva = 'todas';
+        let paginaActual = 1;
         let carrito = JSON.parse(localStorage.getItem('carrito_abu')) || [];
         let usuarioActual = JSON.parse(localStorage.getItem('usuario_abu')) || null;
 
@@ -346,7 +350,7 @@
             const input = document.getElementById('buscador-productos');
             if (input) {
                 input.value = '';
-                aplicarFiltros();
+                aplicarFiltros(1);
             }
         }
 
@@ -569,7 +573,7 @@
             const res = await fetch('/api/productos');
             const data = await res.json().catch(() => []);
             productosGlobal = Array.isArray(data) ? data : [];
-            aplicarFiltros();
+            aplicarFiltros(1);
         }
 
         function seleccionarCategoria(idCat, btn) {
@@ -579,7 +583,7 @@
             subcategoriaActiva = 'todas';
 
             renderizarTarjetasSubcategorias(categoriaActiva);
-            aplicarFiltros();
+            aplicarFiltros(1);
         }
 
         function renderizarTarjetasSubcategorias(idCat) {
@@ -637,10 +641,10 @@
             if (subcategoriaActiva !== 'todas' && cardEl) {
                 cardEl.classList.add('active');
             }
-            aplicarFiltros();
+            aplicarFiltros(1);
         }
 
-        function aplicarFiltros() {
+        function aplicarFiltros(nuevaPagina = 1) {
             let filtrados = [...productosGlobal];
             const tituloProd = document.getElementById('titulo-seccion-productos');
             const textoBuscador = (document.getElementById('buscador-productos')?.value || '').trim().toLowerCase();
@@ -668,7 +672,60 @@
                 tituloProd.innerHTML = `<i class="fa-solid fa-box-open text-primary me-2"></i>Todos los Productos`;
             }
 
-            mostrarProductos(filtrados);
+            productosFiltradosActuales = filtrados;
+            irAPagina(nuevaPagina, false);
+        }
+
+        function irAPagina(numPagina, hacerScroll = true) {
+            const totalPaginas = Math.max(1, Math.ceil(productosFiltradosActuales.length / PRODUCTOS_POR_PAGINA));
+            paginaActual = Math.min(Math.max(1, Number(numPagina) || 1), totalPaginas);
+
+            const inicio = (paginaActual - 1) * PRODUCTOS_POR_PAGINA;
+            const fin = inicio + PRODUCTOS_POR_PAGINA;
+            const paginaItems = productosFiltradosActuales.slice(inicio, fin);
+
+            mostrarProductos(paginaItems);
+            renderizarPaginacion(totalPaginas);
+
+            if (hacerScroll) {
+                document.getElementById('titulo-seccion-productos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function renderizarPaginacion(totalPaginas) {
+            const nav = document.getElementById('paginacion-productos');
+            if (!nav) return;
+
+            if (productosFiltradosActuales.length <= PRODUCTOS_POR_PAGINA) {
+                nav.innerHTML = '';
+                return;
+            }
+
+            let itemsHtml = `
+                <li class="page-item ${paginaActual === 1 ? 'disabled' : ''}">
+                    <button class="page-link" onclick="irAPagina(${paginaActual - 1})" aria-label="Anterior">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                </li>
+            `;
+
+            for (let i = 1; i <= totalPaginas; i++) {
+                itemsHtml += `
+                    <li class="page-item ${i === paginaActual ? 'active' : ''}">
+                        <button class="page-link" onclick="irAPagina(${i})">${i}</button>
+                    </li>
+                `;
+            }
+
+            itemsHtml += `
+                <li class="page-item ${paginaActual === totalPaginas ? 'disabled' : ''}">
+                    <button class="page-link" onclick="irAPagina(${paginaActual + 1})" aria-label="Siguiente">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </li>
+            `;
+
+            nav.innerHTML = `<ul class="pagination pagination-md shadow-sm mb-0">${itemsHtml}</ul>`;
         }
 
         function mostrarProductos(lista) {
